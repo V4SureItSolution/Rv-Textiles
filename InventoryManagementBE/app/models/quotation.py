@@ -76,7 +76,7 @@ class QuotationItem(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     quotation_id = db.Column(db.Integer, db.ForeignKey('quotations.id'), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id', ondelete='SET NULL'), nullable=True)
     
     # Snapshot of product details at time of quotation
     product_name = db.Column(db.String(100), nullable=False)

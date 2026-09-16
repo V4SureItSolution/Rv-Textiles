@@ -14,6 +14,7 @@ class Product(db.Model):
 
     buy_price = db.Column(db.Float, nullable=False)
     sell_price = db.Column(db.Float, nullable=False)
+    mrp = db.Column(db.Float, nullable=True)
     quantity = db.Column(db.Integer, nullable=False)
 
     supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=True)
@@ -49,10 +50,14 @@ class Product(db.Model):
             "unit": self.unit,
             "buyPrice": self.buy_price,
             "sellPrice": self.sell_price,
+            "mrp": self.mrp if self.mrp is not None else (round(self.sell_price * 1.25, 2) if self.sell_price else 0),
             "quantity": self.quantity,
             "supplierId": self.supplier_id,
             "supplierName": supplier_name,
             "profitPercent": self.profit_percent,
             "amount": self.amount,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            # Backwards compatibility aliases
+            "type": self.category or "",
+            "model": self.product_code or "",
         }

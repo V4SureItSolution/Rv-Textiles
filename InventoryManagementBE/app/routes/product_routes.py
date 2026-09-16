@@ -69,8 +69,8 @@ def create_product():
         if errors:
             return jsonify({"errors": errors}), 400
 
-        # Check product_code uniqueness if provided
-        product_code = data.get('productCode', '').strip() or None
+        # Check product_code uniqueness if provided (supports 'productCode' or 'model')
+        product_code = (data.get('productCode') or data.get('model') or '').strip() or None
         if product_code:
             existing = Product.query.filter_by(product_code=product_code).first()
             if existing:
@@ -82,13 +82,18 @@ def create_product():
             if not db.session.get(Supplier, supplier_id):
                 supplier_id = None
 
+        category = (data.get("category") or data.get("type") or "").strip() or None
+        unit = (data.get("unit") or "").strip() or None
+        mrp = float(data.get("mrp")) if data.get("mrp") is not None and str(data.get("mrp")).strip() != "" else None
+
         product = Product(
             name=data.get("name", "").strip(),
             product_code=product_code,
-            category=data.get("category", "").strip() or None,
-            unit=data.get("unit", "").strip() or None,
+            category=category,
+            unit=unit,
             buy_price=float(data.get("buyPrice", 0)),
             sell_price=float(data.get("sellPrice", 0)),
+            mrp=mrp,
             quantity=int(data.get("quantity", 0)),
             supplier_id=supplier_id,
         )
@@ -230,22 +235,26 @@ def update_product(id):
         if data.get('name') is not None:
             product.name = data['name'].strip()
 
-        if 'productCode' in data:
-            new_code = data['productCode'].strip() or None
+        code_val = data.get('productCode') if 'productCode' in data else data.get('model')
+        if code_val is not None:
+            new_code = code_val.strip() or None
             if new_code and new_code != product.product_code:
                 existing = Product.query.filter_by(product_code=new_code).first()
                 if existing:
                     return jsonify({"errors": [f"Product code '{new_code}' already exists"]}), 400
             product.product_code = new_code
 
-        if 'category' in data:
-            product.category = data['category'].strip() or None
+        category_val = data.get('category') if 'category' in data else data.get('type')
+        if category_val is not None:
+            product.category = category_val.strip() or None
         if 'unit' in data:
             product.unit = data['unit'].strip() or None
         if data.get('buyPrice') is not None:
             product.buy_price = float(data['buyPrice'])
         if data.get('sellPrice') is not None:
             product.sell_price = float(data['sellPrice'])
+        if 'mrp' in data:
+            product.mrp = float(data['mrp']) if data['mrp'] is not None and str(data['mrp']).strip() != '' else None
         if data.get('quantity') is not None:
             product.quantity = int(data['quantity'])
 
@@ -271,7 +280,19 @@ def update_product(id):
 @product_bp.route("/products/<int:id>", methods=["DELETE"])
 def delete_product(id):
     try:
-        product = db.get_or_404(Product, id)
+        product = db.session.get(Product, id)
+        if not product:
+            return jsonify({"message": "Product already deleted"}), 200
+
+        # Unlink product from historical items so past bills/invoices/quotations preserve snapshot data
+        from app.models.billing import BillItem
+        from app.models.invoice import InvoiceItem
+        from app.models.quotation import QuotationItem
+
+        BillItem.query.filter_by(product_id=id).update({'product_id': None})
+        InvoiceItem.query.filter_by(product_id=id).update({'product_id': None})
+        QuotationItem.query.filter_by(product_id=id).update({'product_id': None})
+
         db.session.delete(product)
         db.session.commit()
         return jsonify({"message": "Product deleted successfully"}), 200

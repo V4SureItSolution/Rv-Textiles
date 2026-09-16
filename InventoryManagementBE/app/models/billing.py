@@ -160,7 +160,7 @@ class BillItem(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     bill_id = db.Column(db.Integer, db.ForeignKey('bills.id'), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id', ondelete='SET NULL'), nullable=True)
     
     # Snapshot of product details at time of billing (textile-specific)
     product_name = db.Column(db.String(100), nullable=False)
@@ -188,7 +188,10 @@ class BillItem(db.Model):
             'sellPrice': round(self.sell_price, 2),
             'quantity': self.quantity,
             'total': round(self.total, 2),
-            'itemStatus': self.item_status
+            'itemStatus': self.item_status,
+            # Backwards compatibility aliases
+            'product_model': self.product_code or '',
+            'product_type': self.product_category or ''
         }
 
 

@@ -68,5 +68,8 @@ class Item(db.Model):
             'attachment': self.attachment,
             'quantity': self.quantity,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            # Backwards compatibility aliases
+            'type': self.category or '',
+            'model': self.product_code or '',
         }
