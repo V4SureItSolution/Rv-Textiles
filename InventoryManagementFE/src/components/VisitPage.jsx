@@ -78,7 +78,7 @@ const VisitBillPage = () => {
   
   // Company/Shop Details from Backend
   const [companyDetails, setCompanyDetails] = useState({
-    name: "Avva Inventory",
+    name: "RV Textiles",
     address: "No.71, M.T.H.road (Opp padi post office)",
     city: "Padi, Chennai - 600 050",
     phone: "98657 09626",
@@ -184,7 +184,7 @@ const VisitBillPage = () => {
       } else {
         // Use default company details
         setCompanyDetails({
-          name: "Avva Inventory",
+          name: "RV Textiles",
           address: "No.71, M.T.H.road (Opp padi post office)",
           city: "Padi, Chennai - 600 050",
           phone: "98657 09626",
@@ -199,7 +199,7 @@ const VisitBillPage = () => {
       showMessage("error", "❌ Failed to fetch company details");
       // Use default company details
       setCompanyDetails({
-        name: "Avva Inventory",
+        name: "RV Textiles",
         address: "No.71, M.T.H.road (Opp padi post office)",
         city: "Padi, Chennai - 600 050",
         phone: "93423 01582",
@@ -221,7 +221,7 @@ const VisitBillPage = () => {
       
       const company = response.data;
       setCompanyDetails({
-        name: company.name || "Avva Inventory",
+        name: company.name || "RV Textiles",
         address: company.address || "No.71, M.T.H.road (Opp padi post office)",
         city: company.city || "Padi, Chennai - 600 050",
         phone: company.phone || "93423 01582",
@@ -805,7 +805,7 @@ const VisitBillPage = () => {
       doc.setFontSize(18);
       doc.setTextColor(37, 99, 235); // #2563eb Primary Blue
       doc.setFont('helvetica', 'bold');
-      doc.text(companyDetails.name || 'Avva Inventory', 14, 18);
+      doc.text(companyDetails.name || 'RV Textiles', 14, 18);
 
       doc.setFontSize(8.5);
       doc.setFont('helvetica', 'normal');
@@ -955,7 +955,7 @@ const VisitBillPage = () => {
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(148, 163, 184);
           doc.text(`Page ${data.pageNumber} of ${pageCount}`, pageWidth / 2, pageHeight - 8, { align: 'center' });
-          doc.text('Avva Inventory Billing System', 14, pageHeight - 8);
+          doc.text('RV Textiles Billing System', 14, pageHeight - 8);
         }
       });
 
@@ -1121,7 +1121,7 @@ const VisitBillPage = () => {
         </head>
         <body>
           <div class="header">
-            <img src="/avva-logo.jpeg" class="logo" alt="Avva Inventory Logo" />
+            <img src="/avva-logo.jpeg" class="logo" alt="RV Textiles Logo" />
             <h1>${companyDetails.name}</h1>
             <p>${companyDetails.address}</p>
             <p>${companyDetails.city}</p>

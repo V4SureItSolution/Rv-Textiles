@@ -1724,7 +1724,7 @@ const Salary = () => {
 
             <div id="printable-payslip">
               <div style={{ textAlign: 'center', borderBottom: '2px solid #0f172a', paddingBottom: '20px', marginBottom: '28px' }}>
-                <h1 style={{ margin: 0, fontSize: '26px', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#0f172a', fontWeight: '800' }}>Avva Inventory Solution</h1>
+                <h1 style={{ margin: 0, fontSize: '26px', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#0f172a', fontWeight: '800' }}>RV Textiles Solution</h1>
                 <p style={{ margin: '6px 0 0 0', fontSize: '14px', color: '#475569', fontWeight: '500' }}>Official Payslip Statement for {payslipData.period}</p>
               </div>
 

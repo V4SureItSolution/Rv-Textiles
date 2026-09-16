@@ -76,7 +76,7 @@ const Bill = () => {
 
   // Shop details (will be overridden by selected company)
   const defaultShopDetails = {
-    name: 'Avva Inventory',
+    name: 'RV Textiles',
     address: 'No.20, Satya Sai Nagar',
     city: ' Madhavaram, Chennai, Tamil Nadu 600060',
     phone: '',
@@ -1877,7 +1877,7 @@ const Bill = () => {
         <body>
           <div id="billPaper">
             <div class="bill-header">
-              <img src="/avva-logo.jpeg" class="bill-logo" alt="Avva Inventory Logo">
+              <img src="/avva-logo.jpeg" class="bill-logo" alt="RV Textiles Logo">
               <h1>${shopDetails.name}</h1>
               <p>${shopDetails.address}</p>
               <p>${shopDetails.city}</p>
@@ -2373,7 +2373,7 @@ const Bill = () => {
     const due = calculateDue();
     const activeProducts = selectedProducts.filter(p => p.quantity > 0);
 
-    let message = `*Avva Inventory*\n`;
+    let message = `*RV Textiles*\n`;
     message += `${shopDetails.address}\n`;
     message += `${shopDetails.city}\n`;
     if (shopDetails.phone) message += `Ph: ${shopDetails.phone}\n`;
@@ -2752,7 +2752,7 @@ const Bill = () => {
             ref={billPaperRef}
           >
             <div className="bill-header">
-              <img src="/avva-logo.jpeg" alt="Avva Inventory Logo" style={{ maxWidth: '100px', marginBottom: '5px', display: 'block', marginLeft: 'auto', marginRight: 'auto' }} />
+              <img src="/avva-logo.jpeg" alt="RV Textiles Logo" style={{ maxWidth: '100px', marginBottom: '5px', display: 'block', marginLeft: 'auto', marginRight: 'auto' }} />
               <h1 style={baseStyles.billHeaderH1}>{shopDetails.name}</h1>
               <p style={baseStyles.billHeaderP}>{shopDetails.address}</p>
               <p style={baseStyles.billHeaderP}>{shopDetails.city}</p>

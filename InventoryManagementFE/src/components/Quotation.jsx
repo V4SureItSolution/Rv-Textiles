@@ -42,7 +42,7 @@ const QuotationPage = () => {
 
   // Company details
   const companyDetails = {
-    name: "Avva Inventory",
+    name: "RV Textiles",
     address: "No.71, M.T.H.road (Opp padi post office), Padi, Chennai - 600 050",
     phone: "98657 09626",
     email: "hiprintsolutions@gmail.com",
@@ -460,7 +460,7 @@ const QuotationPage = () => {
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(148, 163, 184);
           doc.text(`Page ${data.pageNumber} of ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
-          doc.text('Avva Inventory System', 14, pageHeight - 10);
+          doc.text('RV Textiles System', 14, pageHeight - 10);
         }
       });
 
@@ -934,8 +934,8 @@ const QuotationPage = () => {
         </head>
         <body>
           <div class="header">
-            <img src="/avva-logo.jpeg" class="company-logo" alt="Avva Inventory Logo">
-            <div class="company-name">Avva Inventory</div>
+            <img src="/avva-logo.jpeg" class="company-logo" alt="RV Textiles Logo">
+            <div class="company-name">RV Textiles</div>
             <div class="company-details">No.71, M.T.H.road (Opp padi post office), Padi, Chennai - 600 050</div>
             <div class="company-details">Phone: 98657 09626 | Email: hiprintsolutions@gmail.com | GST: 33ABCDE1234F1Z5</div>
           </div>       
@@ -1019,7 +1019,7 @@ const QuotationPage = () => {
           
           <div class="signature">
             <div>
-              <p><strong>For Avva Inventory</strong></p>
+              <p><strong>For RV Textiles</strong></p>
               <div class="signature-line"></div>
               <p>Authorized Signatory</p>
             </div>
@@ -1286,7 +1286,7 @@ const QuotationPage = () => {
             <div style={styles.modalContent}>
               {/* Company Header */}
               <div style={styles.viewCompanyHeader}>
-                <img src="/avva-logo.jpeg" alt="Avva Inventory Logo" style={{ maxWidth: '120px', marginBottom: '10px' }} />
+                <img src="/avva-logo.jpeg" alt="RV Textiles Logo" style={{ maxWidth: '120px', marginBottom: '10px' }} />
                 <h3 style={{ color: '#3b82f6', margin: 0 }}>{companyDetails.name}</h3>
                 <p style={{ margin: '5px 0', color: '#94a3b8' }}>{companyDetails.address}</p>
                 <p style={{ margin: 0, color: '#94a3b8' }}>Phone: {companyDetails.phone} | Email: {companyDetails.email}</p>

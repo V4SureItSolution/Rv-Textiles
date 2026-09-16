@@ -127,7 +127,7 @@ const Login = () => {
     <div style={styles.container}>
       <form style={styles.form} onSubmit={handleSubmit}>
         <div style={styles.logoContainer}>
-          <img src={logo} alt="Avva Inventory Logo" style={styles.logo} />
+          <img src={logo} alt="RV Textiles Logo" style={styles.logo} />
         </div>
         <h2 style={styles.title}></h2>
         <h2 style={styles.title}></h2>

@@ -54,7 +54,7 @@ const Warranty = () => {
   
   // Company/Shop Details from Backend
   const [companyDetails, setCompanyDetails] = useState({
-    name: "Avva Inventory",
+    name: "RV Textiles",
     address: "No.71, M.T.H.road (Opp padi post office)",
     city: "Padi, Chennai - 600 050",
     phone: "93423 01582",
@@ -110,7 +110,7 @@ const Warranty = () => {
         await fetchCompanyDetails(firstCompany.id);
       } else {
         setCompanyDetails({
-          name: "Avva Inventory",
+          name: "RV Textiles",
           address: "",
           city: "",
           phone: "",
@@ -123,7 +123,7 @@ const Warranty = () => {
     } catch (err) {
       console.error('Error fetching companies:', err);
       setCompanyDetails({
-        name: "Avva Inventory",
+        name: "RV Textiles",
         address: "",
         city: "",
         phone: "",
@@ -140,7 +140,7 @@ const Warranty = () => {
       const response = await api.get(`/companies/${companyId}`);
       const company = response.data;
       setCompanyDetails({
-        name: company.name || "Avva Inventory",
+        name: company.name || "RV Textiles",
         address: company.address || "",
         city: company.city || "",
         phone: company.phone || "",
@@ -529,7 +529,7 @@ const Warranty = () => {
         </head>
         <body>
           <div class="header">
-            <img src="/avva-logo.jpeg" alt="Avva Inventory Logo" style="max-width: 150px; margin-bottom: 10px;">
+            <img src="/avva-logo.jpeg" alt="RV Textiles Logo" style="max-width: 150px; margin-bottom: 10px;">
             <h1>${companyDetails.name}</h1>
             <h2 style="color: #6b7280; font-size: 18px; margin-top: 0;">Warranty Report</h2>
           </div>

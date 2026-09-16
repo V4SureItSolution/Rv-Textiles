@@ -77,7 +77,7 @@ const ServiceBill = () => {
 
   
   const shopDetails = {
-    name: 'Avva Inventory',
+    name: 'RV Textiles',
     phone: '+91 93423 01582',
     address: 'No.71, M.T.H.road (Opp padi post office), Padi',
     city: 'Chennai - 600 050',
@@ -1561,7 +1561,7 @@ const ServiceBill = () => {
         <body>
           <div id="billPaper">
             <div class="bill-header">
-              <img src="/avva-logo.jpeg" class="bill-logo" alt="Avva Inventory Logo">
+              <img src="/avva-logo.jpeg" class="bill-logo" alt="RV Textiles Logo">
               <h1>${shopDetails.name}</h1>
               <p>${shopDetails.address}</p>
               <p>${shopDetails.city}</p>
@@ -1837,7 +1837,7 @@ const ServiceBill = () => {
     const due = calculateDue();
     const activeServices = manualServices.filter(s => s.quantity > 0);
 
-    let message = `*Avva Inventory - SERVICE BILL*\n`;
+    let message = `*RV Textiles - SERVICE BILL*\n`;
     message += `${shopDetails.address}\n`;
     message += `${shopDetails.city}\n`;
     message += `Ph: ${shopDetails.phone}\n`;
@@ -1864,7 +1864,7 @@ const ServiceBill = () => {
     message += `Status: ${paymentStatus.toUpperCase()}\n`;
     if (due > 0) message += `Due: ₹${due.toFixed(2)}\n`;
     message += `================\n`;
-    message += `Thank you for choosing Avva Inventory!\n`;
+    message += `Thank you for choosing RV Textiles!\n`;
     message += `For service support, call ${shopDetails.phone}`;
 
     const encodedMessage = encodeURIComponent(message);
@@ -1990,7 +1990,7 @@ const ServiceBill = () => {
     <div style={baseStyles.container}>
       {/* Left Panel - Manual Service Entry */}
       <div style={baseStyles.productPanel} className="no-print">
-        <h2 style={baseStyles.productPanelTitle}>🔧 Create Service Bill - Avva Inventory</h2>
+        <h2 style={baseStyles.productPanelTitle}>🔧 Create Service Bill - RV Textiles</h2>
         
         {error && (
           <div style={{...baseStyles.alert, ...baseStyles.alertError}}>
@@ -2177,7 +2177,7 @@ const ServiceBill = () => {
             ref={billPaperRef}
           >
             <div className="bill-header">
-              <img src="/avva-logo.jpeg" alt="Avva Inventory Logo" style={{ maxWidth: '100px', marginBottom: '5px', display: 'block', marginLeft: 'auto', marginRight: 'auto' }} />
+              <img src="/avva-logo.jpeg" alt="RV Textiles Logo" style={{ maxWidth: '100px', marginBottom: '5px', display: 'block', marginLeft: 'auto', marginRight: 'auto' }} />
               <h1 style={baseStyles.billHeaderH1}>{shopDetails.name}</h1>
               <p style={baseStyles.billHeaderP}>{shopDetails.address}</p>
               <p style={baseStyles.billHeaderP}>{shopDetails.city}</p>
