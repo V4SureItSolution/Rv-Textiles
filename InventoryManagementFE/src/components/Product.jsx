@@ -1,13 +1,15 @@
 // Product.jsx — Textile Stock Management (Search & Filter Upgrade)
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   Plus, Download, Upload, Trash2, Save, Search, RefreshCw,
   X, ChevronLeft, ChevronRight, Edit, Hash, Tag, Package,
-  AlertTriangle, Filter, XCircle,
+  AlertTriangle, Filter, XCircle, Printer,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import JsBarcode from "jsbarcode";
 import { formatDate } from "../utils/dateUtils";
+import { printProductSticker } from "../utils/printProductSticker";
 
 const API_URL = "http://localhost:5000/api/products";
 const SUPPLIER_API_URL = "http://localhost:5000/api";
@@ -71,6 +73,15 @@ export default function ItemsPage() {
   const [importedItems,    setImportedItems]    = useState([]);
   const [processingImport, setProcessingImport] = useState(false);
   const [importStats,      setImportStats]      = useState({ added: 0, updated: 0, skipped: 0 });
+
+  // ── Product Sticker modal state ────────────────────────────────────────────
+  const [showStickerModal, setShowStickerModal] = useState(false);
+  const [stickerProduct,   setStickerProduct]   = useState(null);
+  const [stickerCopies,    setStickerCopies]    = useState(1);
+  const [stickerMrp,       setStickerMrp]       = useState("");
+  const [stickerSellPrice, setStickerSellPrice] = useState("");
+  const [stickerBarcode,   setStickerBarcode]   = useState("");
+  const previewSvgRef = useRef(null);
 
   // ── Computed: any active filter? ───────────────────────────────────────────
   const hasActiveFilters = !!(
@@ -181,7 +192,17 @@ export default function ItemsPage() {
   const calculateAmount = (item) => {
     const sell = parseFloat(item.sellPrice) || 0;
     const qty  = parseInt(item.quantity)    || 0;
-    return { ...item, amount: (sell * qty).toFixed(2), buyPrice: parseFloat(item.buyPrice) || 0, sellPrice: sell, quantity: qty };
+    const mrp  = item.mrp !== undefined && item.mrp !== null && item.mrp !== ""
+      ? item.mrp
+      : (sell > 0 ? (sell * 1.25).toFixed(2) : "");
+    return {
+      ...item,
+      amount: (sell * qty).toFixed(2),
+      buyPrice: parseFloat(item.buyPrice) || 0,
+      sellPrice: sell,
+      mrp: mrp,
+      quantity: qty,
+    };
   };
 
   const isSameProduct = (a, b) => {
@@ -256,6 +277,7 @@ export default function ItemsPage() {
         supplierId:  editingItem.supplierId || null,
         buyPrice:    parseFloat(editingItem.buyPrice)  || 0,
         sellPrice:   parseFloat(editingItem.sellPrice) || 0,
+        mrp:         editingItem.mrp ? parseFloat(editingItem.mrp) : null,
         quantity:    parseInt(editingItem.quantity)    || 0,
       };
 
@@ -290,9 +312,96 @@ export default function ItemsPage() {
   const handleAddNewItem = () => {
     setEditingItem(calculateAmount({
       id: `new-${Date.now()}`, name: "", productCode: "", category: "",
-      unit: "", supplierId: null, buyPrice: "", sellPrice: "", quantity: "", isNew: true,
+      unit: "", supplierId: null, buyPrice: "", sellPrice: "", mrp: "", quantity: "", isNew: true,
     }));
     setShowEditModal(true);
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // PRODUCT STICKER HANDLERS
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const handleOpenStickerModal = (item = null) => {
+    const target = item || (items.length > 0 ? items[0] : null);
+    if (!target) {
+      showMessage("info", "No products available to generate stickers.");
+      return;
+    }
+
+    const sell = parseFloat(target.sellPrice) || 0;
+    const rawMrp = target.mrp !== undefined && target.mrp !== null && target.mrp !== ""
+      ? parseFloat(target.mrp)
+      : (sell > 0 ? Math.round(sell * 1.25) : 0);
+    const code = String(
+      target.productCode || (target.id ? `RVT-${String(target.id).padStart(5, "0")}` : "000000")
+    ).trim();
+
+    setStickerProduct(target);
+    setStickerCopies(parseInt(target.quantity) > 0 ? parseInt(target.quantity) : 1);
+    setStickerMrp(rawMrp > 0 ? rawMrp.toFixed(2) : (sell * 1.25).toFixed(2));
+    setStickerSellPrice(sell.toFixed(2));
+    setStickerBarcode(code);
+    setShowStickerModal(true);
+  };
+
+  const handleSelectStickerProduct = (id) => {
+    const found = items.find((p) => String(p.id) === String(id));
+    if (found) {
+      const sell = parseFloat(found.sellPrice) || 0;
+      const rawMrp = found.mrp !== undefined && found.mrp !== null && found.mrp !== ""
+        ? parseFloat(found.mrp)
+        : (sell > 0 ? Math.round(sell * 1.25) : 0);
+      const code = String(
+        found.productCode || (found.id ? `RVT-${String(found.id).padStart(5, "0")}` : "000000")
+      ).trim();
+
+      setStickerProduct(found);
+      setStickerCopies(parseInt(found.quantity) > 0 ? parseInt(found.quantity) : 1);
+      setStickerMrp(rawMrp > 0 ? rawMrp.toFixed(2) : (sell * 1.25).toFixed(2));
+      setStickerSellPrice(sell.toFixed(2));
+      setStickerBarcode(code);
+    }
+  };
+
+  // Live SVG barcode rendering in modal
+  useEffect(() => {
+    if (showStickerModal && previewSvgRef.current && stickerBarcode) {
+      try {
+        JsBarcode(previewSvgRef.current, stickerBarcode, {
+          format: "CODE128",
+          width: 1.4,
+          height: 34,
+          displayValue: false,
+          margin: 0,
+        });
+      } catch (e) {
+        console.error("Barcode preview error:", e);
+      }
+    }
+  }, [showStickerModal, stickerBarcode]);
+
+  const handlePrintSticker = () => {
+    if (!stickerProduct) return;
+    const printItem = {
+      ...stickerProduct,
+      productCode: stickerBarcode || stickerProduct.productCode,
+      mrp: parseFloat(stickerMrp) || 0,
+      sellPrice: parseFloat(stickerSellPrice) || 0,
+    };
+    printProductSticker(printItem, {
+      copies: parseInt(stickerCopies) || 1,
+      storeName: "RV TEXTILES",
+    });
+    showMessage("success", `Sticker print initiated for ${stickerProduct.name}`);
+  };
+
+  const handlePrintAllStickers = () => {
+    if (items.length === 0) return;
+    printProductSticker(items, {
+      storeName: "RV TEXTILES",
+    });
+    showMessage("success", `Sticker print initiated for all ${items.length} products`);
+    setShowStickerModal(false);
   };
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -309,7 +418,21 @@ export default function ItemsPage() {
     try {
       if (!String(id).startsWith("new-")) {
         const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
-        if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed to delete"); }
+        if (res.status === 404) {
+          showMessage("info", "Item was already deleted");
+          await loadProducts(currentPage);
+          return;
+        }
+        if (!res.ok) {
+          let errorMsg = "Failed to delete";
+          try {
+            const e = await res.json();
+            errorMsg = e.error || e.message || errorMsg;
+          } catch {
+            errorMsg = await res.text();
+          }
+          throw new Error(errorMsg);
+        }
       }
       showMessage("success", "Item deleted");
       await loadProducts(currentPage);
@@ -585,6 +708,7 @@ export default function ItemsPage() {
 
     // Action buttons
     actionBtns: { display: "flex", gap: "6px" },
+    stickerBtn: { background: "none", border: "none", cursor: "pointer", padding: "5px", borderRadius: "4px", color: "#38bdf8", display: "flex", alignItems: "center" },
     editBtn:    { background: "none", border: "none", cursor: "pointer", padding: "5px", borderRadius: "4px", color: "#818cf8", display: "flex", alignItems: "center" },
     delBtn:     { background: "none", border: "none", cursor: "pointer", padding: "5px", borderRadius: "4px", color: "#f87171", display: "flex", alignItems: "center" },
 
@@ -699,10 +823,14 @@ export default function ItemsPage() {
             </div>
 
             {/* Prices */}
-            <div style={M.row2}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
               <div style={M.group}>
-                <label style={M.label}>Purchase Price (₹)</label>
+                <label style={M.label}>Purchase (₹)</label>
                 <input style={M.input} type="number" min="0" step="0.01" value={editingItem.buyPrice || ""} onChange={(e) => handleEditChange("buyPrice", e.target.value)} placeholder="0.00" />
+              </div>
+              <div style={M.group}>
+                <label style={M.label}>MRP (₹)</label>
+                <input style={M.input} type="number" min="0" step="0.01" value={editingItem.mrp || ""} onChange={(e) => handleEditChange("mrp", e.target.value)} placeholder="Auto (25%)" />
               </div>
               <div style={M.group}>
                 <label style={M.label}>Selling Price (₹)</label>
@@ -800,6 +928,286 @@ export default function ItemsPage() {
         </div>
       )}
 
+      {/* ── Product Sticker Modal ─────────────────────────────────── */}
+      {showStickerModal && stickerProduct && (
+        <div style={M.overlay}>
+          <div style={{ ...M.box, maxWidth: "680px" }}>
+            <div style={M.header}>
+              <h2 style={{ ...M.title, display: "flex", alignItems: "center", gap: "8px" }}>
+                <Tag size={19} style={{ color: "#38bdf8" }} />
+                Product Sticker — RV Textiles
+              </h2>
+              <button style={M.closeBtn} onClick={() => setShowStickerModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Product Selector if multiple products exist */}
+            {items.length > 1 && (
+              <div style={{ marginBottom: "16px" }}>
+                <label style={M.label}>Select Product</label>
+                <select
+                  style={M.select}
+                  value={stickerProduct.id}
+                  onChange={(e) => handleSelectStickerProduct(e.target.value)}
+                >
+                  {items.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.productCode || `ID: ${p.id}`}) — ₹{parseFloat(p.sellPrice || 0).toFixed(2)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Layout: Live Label Preview (left) + Editable Fields (right) */}
+            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", alignItems: "flex-start" }}>
+              
+              {/* Sticker Visual Preview */}
+              <div style={{ flex: "1 1 240px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <div style={{ fontSize: "11px", color: "#94a3b8", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>
+                  Live Label Preview (50 × 25 mm)
+                </div>
+
+                {/* Actual Physical Proportional Sticker Card */}
+                <div style={{
+                  width: "240px",
+                  height: "120px",
+                  backgroundColor: "#ffffff",
+                  borderRadius: "6px",
+                  border: "1px solid #94a3b8",
+                  padding: "4px 8px 4px 8px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "flex-start",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+                  color: "#000000",
+                  fontFamily: "Arial, sans-serif",
+                  boxSizing: "border-box",
+                  overflow: "hidden",
+                }}>
+                  {/* Store Name */}
+                  <div style={{
+                    width: "100%",
+                    fontSize: "11px",
+                    fontWeight: "900",
+                    textAlign: "center",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.8px",
+                    borderBottom: "1px solid #000000",
+                    paddingBottom: "2px",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}>
+                    RV TEXTILES
+                  </div>
+
+                  {/* Product Name */}
+                  <div style={{
+                    width: "100%",
+                    fontSize: "10px",
+                    fontWeight: "700",
+                    textAlign: "center",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    paddingTop: "2px",
+                  }} title={stickerProduct.name}>
+                    {stickerProduct.name || "Textile Item"}
+                  </div>
+
+                  {/* Barcode SVG */}
+                  <div style={{ width: "100%", display: "flex", justifyContent: "center", alignItems: "center", margin: "1px 0" }}>
+                    <svg ref={previewSvgRef} style={{ maxWidth: "210px", height: "34px", display: "block" }} />
+                  </div>
+
+                  {/* Barcode Number */}
+                  <div style={{
+                    fontSize: "9px",
+                    fontFamily: "'Courier New', monospace",
+                    fontWeight: "700",
+                    letterSpacing: "0.8px",
+                    textAlign: "center",
+                    lineHeight: "1",
+                  }}>
+                    {stickerBarcode || "000000"}
+                  </div>
+
+                  {/* Price Section: MRP Strikethrough & Selling Price Clearly Next To It */}
+                  <div style={{
+                    width: "100%",
+                    borderTop: "1px solid #000000",
+                    marginTop: "auto",
+                    paddingTop: "2px",
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "12px",
+                    lineHeight: "1.2",
+                  }}>
+                    <span style={{
+                      fontSize: "9.5px",
+                      fontWeight: "700",
+                      textDecoration: "line-through",
+                      color: "#dc2626",
+                      whiteSpace: "nowrap",
+                    }}>
+                      MRP: ₹{parseFloat(stickerMrp || 0).toFixed(2)}
+                    </span>
+                    <span style={{
+                      fontSize: "11.5px",
+                      fontWeight: "900",
+                      color: "#000000",
+                      whiteSpace: "nowrap",
+                    }}>
+                      PRICE: ₹{parseFloat(stickerSellPrice || 0).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: "10px", fontSize: "11px", color: "#64748b", textAlign: "center" }}>
+                  🖨️ For SNBC TVSE LP45 BPLE (2 per row on 101.6mm roll)
+                </div>
+              </div>
+
+              {/* Form Controls */}
+              <div style={{ flex: "1 1 280px" }}>
+                {/* Product Name (Read-only) */}
+                <div style={M.group}>
+                  <label style={M.label}>Product Name</label>
+                  <div style={{ ...M.readOnly, fontWeight: "600", color: "#f1f5f9" }}>
+                    {stickerProduct.name}
+                  </div>
+                </div>
+
+                {/* Product Barcode */}
+                <div style={M.group}>
+                  <label style={M.label}>Product Barcode / SKU</label>
+                  <input
+                    style={M.input}
+                    value={stickerBarcode}
+                    onChange={(e) => setStickerBarcode(e.target.value)}
+                    placeholder="Barcode string e.g. CTN-001"
+                  />
+                </div>
+
+                {/* MRP and Selling Price */}
+                <div style={M.row2}>
+                  <div style={M.group}>
+                    <label style={M.label}>
+                      MRP (₹) <span style={{ color: "#ef4444", fontSize: "10px", fontWeight: "normal" }}>[Strikethrough]</span>
+                    </label>
+                    <input
+                      style={{ ...M.input, borderColor: "#f87171" }}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={stickerMrp}
+                      onChange={(e) => setStickerMrp(e.target.value)}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div style={M.group}>
+                    <label style={M.label}>
+                      Selling Price (₹) <span style={{ color: "#4ade80", fontSize: "10px", fontWeight: "normal" }}>[Display Price]</span>
+                    </label>
+                    <input
+                      style={{ ...M.input, borderColor: "#4ade80" }}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={stickerSellPrice}
+                      onChange={(e) => setStickerSellPrice(e.target.value)}
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+
+                {/* Copies */}
+                <div style={M.group}>
+                  <label style={M.label}>Number of Stickers to Print</label>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <input
+                      style={{ ...M.input, width: "100px" }}
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={stickerCopies}
+                      onChange={(e) => setStickerCopies(Math.max(1, parseInt(e.target.value) || 1))}
+                    />
+                    {[1, 2, 5, 10].map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        style={{
+                          padding: "6px 10px",
+                          backgroundColor: stickerCopies === num ? "#6366f1" : "#0f172a",
+                          color: "#f1f5f9",
+                          border: `1px solid ${stickerCopies === num ? "#6366f1" : "#334155"}`,
+                          borderRadius: "6px",
+                          fontSize: "12px",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => setStickerCopies(num)}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                    {parseInt(stickerProduct.quantity) > 0 && (
+                      <button
+                        type="button"
+                        style={{
+                          padding: "6px 10px",
+                          backgroundColor: "#0f172a",
+                          color: "#38bdf8",
+                          border: "1px solid #334155",
+                          borderRadius: "6px",
+                          fontSize: "12px",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => setStickerCopies(parseInt(stickerProduct.quantity) || 1)}
+                        title="Set copies equal to in-stock quantity"
+                      >
+                        Stock ({stickerProduct.quantity})
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={M.footer}>
+              <button style={S.btn} onClick={() => setShowStickerModal(false)}>
+                Cancel
+              </button>
+
+              {items.length > 1 && (
+                <button
+                  style={{ ...S.btn, backgroundColor: "#334155", color: "#f1f5f9" }}
+                  onClick={handlePrintAllStickers}
+                  title="Print 1 sticker for each item in current product list"
+                >
+                  Print All Products ({items.length})
+                </button>
+              )}
+
+              <button
+                style={{ ...S.btn, ...S.btnPrimary, backgroundColor: "#0284c7" }}
+                onClick={handlePrintSticker}
+              >
+                <Printer size={15} />
+                Print {stickerCopies} Sticker{stickerCopies > 1 ? "s" : ""}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Header ──────────────────────────────────────────────── */}
       <div style={S.header}>
         <div style={S.headerTitle}>
@@ -810,6 +1218,13 @@ export default function ItemsPage() {
         </div>
 
         <div style={S.buttonGroup}>
+          <button
+            style={{ ...S.btn, borderColor: "rgba(56,189,248,0.4)", color: "#38bdf8" }}
+            onClick={() => handleOpenStickerModal(null)}
+            title="Generate & Print Product Stickers for RV Textiles"
+          >
+            <Tag size={15} /> Product Sticker
+          </button>
           <button style={S.btn} onClick={handleExport}><Download size={15} /> Export</button>
           <label style={{ ...S.btn, cursor: "pointer" }}>
             <Upload size={15} /> Import
@@ -967,6 +1382,7 @@ export default function ItemsPage() {
                       <td style={{ ...tdStyle, fontWeight: "600" }}>₹{parseFloat(item.amount || 0).toFixed(2)}</td>
                       <td style={tdStyle}>
                         <div style={S.actionBtns}>
+                          <button style={S.stickerBtn} onClick={() => handleOpenStickerModal(item)} title="Generate Product Sticker for RV Textiles"><Tag size={15} /></button>
                           <button style={S.editBtn} onClick={() => handleEditClick(item)} title="Edit"><Edit size={15} /></button>
                           <button style={S.delBtn}  onClick={() => handleDelete(item.id)} title="Delete"><Trash2 size={15} /></button>
                         </div>
