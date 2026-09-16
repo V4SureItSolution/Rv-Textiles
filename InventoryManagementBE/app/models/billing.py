@@ -162,10 +162,11 @@ class BillItem(db.Model):
     bill_id = db.Column(db.Integer, db.ForeignKey('bills.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     
-    # Snapshot of product details at time of billing
+    # Snapshot of product details at time of billing (textile-specific)
     product_name = db.Column(db.String(100), nullable=False)
-    product_model = db.Column(db.String(100))
-    product_type = db.Column(db.String(100))
+    product_code = db.Column(db.String(50), nullable=True)   # SKU / product code
+    product_category = db.Column(db.String(100), nullable=True)  # e.g. Cotton, Silk
+    product_unit = db.Column(db.String(50), nullable=True)        # e.g. Meters, Yards
     sell_price = db.Column(db.Float, nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     total = db.Column(db.Float, nullable=False)
@@ -181,8 +182,9 @@ class BillItem(db.Model):
             'id': self.id,
             'productId': self.product_id,
             'productName': self.product_name,
-            'productModel': self.product_model,
-            'productType': self.product_type,
+            'productCode': self.product_code or '',
+            'productCategory': self.product_category or '',
+            'productUnit': self.product_unit or '',
             'sellPrice': round(self.sell_price, 2),
             'quantity': self.quantity,
             'total': round(self.total, 2),

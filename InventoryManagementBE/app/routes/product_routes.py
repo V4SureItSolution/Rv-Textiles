@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from app.models.product import Product
+from app.models.supplier import Supplier
 from app import db
 from flask_cors import CORS
 
@@ -7,36 +8,55 @@ from flask_cors import CORS
 product_bp = Blueprint("product_bp", __name__)
 CORS(product_bp)
 
+TEXTILE_CATEGORIES = [
+    "Cotton", "Silk", "Polyester", "Linen", "Denim",
+    "Wool", "Rayon", "Nylon", "Chiffon", "Georgette",
+    "Velvet", "Satin", "Knit", "Fleece", "Other"
+]
+
+TEXTILE_UNITS = ["Meters", "Yards", "Kilograms", "Pieces", "Rolls", "Bundles", "Boxes"]
+
 
 # Validation function
 def validate_product_data(data):
     errors = []
-    
+
     if not data.get('name'):
         errors.append('Product name is required')
-    
+
     try:
         buy_price = float(data.get('buyPrice', 0))
         if buy_price < 0:
-            errors.append('Buy price cannot be negative')
+            errors.append('Purchase price cannot be negative')
     except (TypeError, ValueError):
-        errors.append('Invalid buy price')
-    
+        errors.append('Invalid purchase price')
+
     try:
         sell_price = float(data.get('sellPrice', 0))
         if sell_price < 0:
-            errors.append('Sell price cannot be negative')
+            errors.append('Selling price cannot be negative')
     except (TypeError, ValueError):
-        errors.append('Invalid sell price')
-    
+        errors.append('Invalid selling price')
+
     try:
         quantity = int(data.get('quantity', 0))
         if quantity < 0:
             errors.append('Quantity cannot be negative')
     except (TypeError, ValueError):
         errors.append('Invalid quantity')
-    
+
     return errors
+
+
+# ------------------ GET CATEGORIES & UNITS ------------------
+@product_bp.route("/products/categories", methods=["GET"])
+def get_categories():
+    return jsonify({"categories": TEXTILE_CATEGORIES}), 200
+
+
+@product_bp.route("/products/units", methods=["GET"])
+def get_units():
+    return jsonify({"units": TEXTILE_UNITS}), 200
 
 
 # ------------------ CREATE PRODUCT ------------------
@@ -44,32 +64,36 @@ def validate_product_data(data):
 def create_product():
     try:
         data = request.get_json()
-        
-        # Validate input
+
         errors = validate_product_data(data)
         if errors:
             return jsonify({"errors": errors}), 400
 
-        # Handle watts properly
-        watts = None
-        if data.get('watts'):
-            try:
-                watts = float(data['watts'])
-            except (TypeError, ValueError):
-                watts = data['watts']  # Keep as string if not float
+        # Check product_code uniqueness if provided
+        product_code = data.get('productCode', '').strip() or None
+        if product_code:
+            existing = Product.query.filter_by(product_code=product_code).first()
+            if existing:
+                return jsonify({"errors": [f"Product code '{product_code}' already exists"]}), 400
+
+        supplier_id = data.get('supplierId') or None
+        if supplier_id:
+            supplier_id = int(supplier_id)
+            if not Supplier.query.get(supplier_id):
+                supplier_id = None
 
         product = Product(
             name=data.get("name", "").strip(),
-            model=data.get("model", "").strip(),
-            type=data.get("type", "").strip(),
-            watts=watts,
+            product_code=product_code,
+            category=data.get("category", "").strip() or None,
+            unit=data.get("unit", "").strip() or None,
             buy_price=float(data.get("buyPrice", 0)),
             sell_price=float(data.get("sellPrice", 0)),
-            quantity=int(data.get("quantity", 0)),  # Changed to int
+            quantity=int(data.get("quantity", 0)),
+            supplier_id=supplier_id,
         )
 
         product.calculate_values()
-
         db.session.add(product)
         db.session.commit()
 
@@ -84,35 +108,94 @@ def create_product():
 @product_bp.route("/products", methods=["GET"])
 def get_products():
     try:
-        # Add pagination
+        from sqlalchemy import func
+
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 10, type=int)
-        
-        # Add filtering
-        product_type = request.args.get('type')
-        min_price = request.args.get('min_price', type=float)
-        max_price = request.args.get('max_price', type=float)
-        
-        query = Product.query
-        
-        if product_type:
-            query = query.filter_by(type=product_type)
-        if min_price is not None:
-            query = query.filter(Product.sell_price >= min_price)
-        if max_price is not None:
-            query = query.filter(Product.sell_price <= max_price)
-        
-        # Paginate results
+        per_page = min(request.args.get('per_page', 10, type=int), 200)
+
+        # --- Filter params ---
+        category        = request.args.get('category')
+        supplier_id     = request.args.get('supplier_id', type=int)
+        unit            = request.args.get('unit')
+        min_price       = request.args.get('min_price', type=float)
+        max_price       = request.args.get('max_price', type=float)
+        search          = request.args.get('search', '').strip()
+        low_stock       = request.args.get('low_stock', '').lower() == 'true'
+        low_stock_thres = request.args.get('low_stock_threshold', 5, type=int)
+
+        # --- Sort params ---
+        sort_by    = request.args.get('sort_by', 'created_at')
+        sort_order = request.args.get('sort_order', 'desc').lower()
+
+        # Shared filter helper — applied to both main query and aggregate query
+        def apply_filters(q):
+            if category:
+                q = q.filter(Product.category == category)
+            if supplier_id:
+                q = q.filter(Product.supplier_id == supplier_id)
+            if unit:
+                q = q.filter(Product.unit == unit)
+            if min_price is not None:
+                q = q.filter(Product.sell_price >= min_price)
+            if max_price is not None:
+                q = q.filter(Product.sell_price <= max_price)
+            if low_stock:
+                q = q.filter(Product.quantity <= low_stock_thres)
+            if search:
+                q = q.filter(
+                    db.or_(
+                        Product.name.ilike(f'%{search}%'),
+                        Product.product_code.ilike(f'%{search}%'),
+                        Product.category.ilike(f'%{search}%'),
+                    )
+                )
+            return q
+
+        # --- Main query ---
+        query = apply_filters(Product.query)
+
+        # Sorting
+        sort_column_map = {
+            'name':           Product.name,
+            'product_code':   Product.product_code,
+            'category':       Product.category,
+            'unit':           Product.unit,
+            'buy_price':      Product.buy_price,
+            'sell_price':     Product.sell_price,
+            'quantity':       Product.quantity,
+            'amount':         Product.amount,
+            'profit_percent': Product.profit_percent,
+            'created_at':     Product.created_at,
+        }
+        sort_col = sort_column_map.get(sort_by, Product.created_at)
+        query = query.order_by(sort_col.desc() if sort_order == 'desc' else sort_col.asc())
+
+        # --- Aggregate summary on the full filtered set (before pagination) ---
+        agg = apply_filters(
+            db.session.query(
+                func.count(Product.id).label('total_products'),
+                func.coalesce(func.sum(Product.quantity), 0).label('total_qty'),
+                func.coalesce(func.sum(Product.amount), 0).label('total_value'),
+                func.coalesce(func.avg(Product.sell_price), 0).label('avg_sell_price'),
+            )
+        ).first()
+
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-        
+
         return jsonify({
-            'items': [p.to_dict() for p in pagination.items],
-            'total': pagination.total,
-            'pages': pagination.pages,
-            'current_page': page,
-            'per_page': per_page
+            'items':          [p.to_dict() for p in pagination.items],
+            'total':          pagination.total,
+            'pages':          pagination.pages,
+            'current_page':   page,
+            'per_page':       per_page,
+            'filter_summary': {
+                'total_products': int(agg.total_products or 0),
+                'total_qty':      int(agg.total_qty or 0),
+                'total_value':    round(float(agg.total_value or 0), 2),
+                'avg_sell_price': round(float(agg.avg_sell_price or 0), 2),
+            },
         }), 200
-        
+
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
@@ -133,25 +216,32 @@ def update_product(id):
     try:
         product = Product.query.get_or_404(id)
         data = request.get_json()
-        
-        # Validate input for updated fields
-        if data.get('buyPrice') or data.get('sellPrice') or data.get('quantity'):
-            errors = validate_product_data(data)
+
+        if data.get('buyPrice') is not None or data.get('sellPrice') is not None or data.get('quantity') is not None:
+            errors = validate_product_data({
+                'name': data.get('name', product.name),
+                'buyPrice': data.get('buyPrice', product.buy_price),
+                'sellPrice': data.get('sellPrice', product.sell_price),
+                'quantity': data.get('quantity', product.quantity),
+            })
             if errors:
                 return jsonify({"errors": errors}), 400
 
-        # Update only provided fields
         if data.get('name') is not None:
             product.name = data['name'].strip()
-        if data.get('model') is not None:
-            product.model = data['model'].strip()
-        if data.get('type') is not None:
-            product.type = data['type'].strip()
-        if data.get('watts') is not None:
-            try:
-                product.watts = float(data['watts'])
-            except (TypeError, ValueError):
-                product.watts = data['watts']
+
+        if 'productCode' in data:
+            new_code = data['productCode'].strip() or None
+            if new_code and new_code != product.product_code:
+                existing = Product.query.filter_by(product_code=new_code).first()
+                if existing:
+                    return jsonify({"errors": [f"Product code '{new_code}' already exists"]}), 400
+            product.product_code = new_code
+
+        if 'category' in data:
+            product.category = data['category'].strip() or None
+        if 'unit' in data:
+            product.unit = data['unit'].strip() or None
         if data.get('buyPrice') is not None:
             product.buy_price = float(data['buyPrice'])
         if data.get('sellPrice') is not None:
@@ -159,8 +249,15 @@ def update_product(id):
         if data.get('quantity') is not None:
             product.quantity = int(data['quantity'])
 
-        product.calculate_values()
+        if 'supplierId' in data:
+            supplier_id = data['supplierId'] or None
+            if supplier_id:
+                supplier_id = int(supplier_id)
+                if not Supplier.query.get(supplier_id):
+                    supplier_id = None
+            product.supplier_id = supplier_id
 
+        product.calculate_values()
         db.session.commit()
 
         return jsonify(product.to_dict()), 200
@@ -175,10 +272,8 @@ def update_product(id):
 def delete_product(id):
     try:
         product = Product.query.get_or_404(id)
-
         db.session.delete(product)
         db.session.commit()
-
         return jsonify({"message": "Product deleted successfully"}), 200
 
     except Exception as e:
@@ -192,57 +287,61 @@ def bulk_create_products():
     try:
         data = request.get_json()
         products = data.get('products', [])
-        
+
         if not products:
             return jsonify({"error": "No products provided"}), 400
-        
+
         created_products = []
         errors = []
-        
+
         for idx, product_data in enumerate(products):
             try:
-                # Validate each product
                 validation_errors = validate_product_data(product_data)
                 if validation_errors:
-                    errors.append({
-                        'index': idx,
-                        'errors': validation_errors,
-                        'data': product_data
-                    })
+                    errors.append({'index': idx, 'errors': validation_errors, 'data': product_data})
                     continue
-                
-                # Create product
+
+                product_code = product_data.get('productCode', '').strip() or None
+                if product_code:
+                    existing = Product.query.filter_by(product_code=product_code).first()
+                    if existing:
+                        existing.quantity += int(product_data.get('quantity', 0))
+                        existing.calculate_values()
+                        created_products.append(existing)
+                        continue
+
+                supplier_id = product_data.get('supplierId') or None
+                if supplier_id:
+                    supplier_id = int(supplier_id)
+
                 product = Product(
                     name=product_data.get("name", "").strip(),
-                    model=product_data.get("model", "").strip(),
-                    type=product_data.get("type", "").strip(),
-                    watts=product_data.get("watts"),
+                    product_code=product_code,
+                    category=product_data.get("category", "").strip() or None,
+                    unit=product_data.get("unit", "").strip() or None,
                     buy_price=float(product_data.get("buyPrice", 0)),
                     sell_price=float(product_data.get("sellPrice", 0)),
                     quantity=int(product_data.get("quantity", 0)),
+                    supplier_id=supplier_id,
                 )
-                
+
                 product.calculate_values()
                 db.session.add(product)
                 created_products.append(product)
-                
+
             except Exception as e:
-                errors.append({
-                    'index': idx,
-                    'error': str(e),
-                    'data': product_data
-                })
-        
+                errors.append({'index': idx, 'error': str(e), 'data': product_data})
+
         if created_products:
             db.session.commit()
-        
+
         return jsonify({
             'created': [p.to_dict() for p in created_products],
             'errors': errors,
             'total_created': len(created_products),
             'total_errors': len(errors)
         }), 201 if created_products else 400
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
@@ -253,7 +352,7 @@ def bulk_create_products():
 def get_product_statistics():
     try:
         from sqlalchemy import func
-        
+
         stats = db.session.query(
             func.count(Product.id).label('total_products'),
             func.sum(Product.quantity).label('total_quantity'),
@@ -261,21 +360,26 @@ def get_product_statistics():
             func.avg(Product.buy_price).label('avg_buy_price'),
             func.sum(Product.amount).label('total_value')
         ).first()
-        
-        # Get counts by type
-        type_counts = db.session.query(
-            Product.type,
+
+        category_counts = db.session.query(
+            Product.category,
             func.count(Product.id).label('count')
-        ).group_by(Product.type).all()
-        
+        ).group_by(Product.category).all()
+
+        unit_counts = db.session.query(
+            Product.unit,
+            func.count(Product.id).label('count')
+        ).group_by(Product.unit).all()
+
         return jsonify({
             'total_products': stats.total_products or 0,
             'total_quantity': stats.total_quantity or 0,
             'average_sell_price': round(stats.avg_sell_price or 0, 2),
             'average_buy_price': round(stats.avg_buy_price or 0, 2),
             'total_inventory_value': round(stats.total_value or 0, 2),
-            'products_by_type': [{'type': t[0] or 'Uncategorized', 'count': t[1]} for t in type_counts]
+            'products_by_category': [{'category': c[0] or 'Uncategorized', 'count': c[1]} for c in category_counts],
+            'products_by_unit': [{'unit': u[0] or 'N/A', 'count': u[1]} for u in unit_counts],
         }), 200
-        
+
     except Exception as e:
         return jsonify({"error": str(e)}), 400

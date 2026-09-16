@@ -22,12 +22,12 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Print debug information
 print("=" * 60)
-print("📁 FILE UPLOAD CONFIGURATION")
-print(f"📁 Base directory: {BASE_DIR}")
-print(f"📁 Upload folder path: {UPLOAD_FOLDER}")
-print(f"📁 Upload folder absolute: {os.path.abspath(UPLOAD_FOLDER)}")
-print(f"📁 Upload folder exists: {os.path.exists(UPLOAD_FOLDER)}")
-print(f"📁 Current working directory: {os.getcwd()}")
+print("[+] FILE UPLOAD CONFIGURATION")
+print(f"[+] Base directory: {BASE_DIR}")
+print(f"[+] Upload folder path: {UPLOAD_FOLDER}")
+print(f"[+] Upload folder absolute: {os.path.abspath(UPLOAD_FOLDER)}")
+print(f"[+] Upload folder exists: {os.path.exists(UPLOAD_FOLDER)}")
+print(f"[+] Current working directory: {os.getcwd()}")
 print("=" * 60)
 
 def allowed_file(filename):

@@ -13,9 +13,9 @@ from dateutil.relativedelta import relativedelta  # Add this import for warranty
 billing_bp = Blueprint("billing_bp", __name__)
 
 def generate_unique_bill_number():
-    """Generate a unique random bill number"""
+    """Generate a unique random bill number for RV Textiles"""
     while True:
-        # Format: BT-YYMMDD-XXXXXXXX (BT = Brain Tech)
+        # Format: RVT-YYMMDD-XXXXXXXX
         now = datetime.now()
         year = str(now.year)[-2:]
         month = str(now.month).zfill(2)
@@ -27,7 +27,7 @@ def generate_unique_bill_number():
             k=8
         ))
         
-        bill_number = f"BT-{year}{month}{day}-{random_chars}"
+        bill_number = f"RVT-{year}{month}{day}-{random_chars}"
         
         # Check if this number already exists
         existing = Bill.query.filter_by(bill_number=bill_number).first()
@@ -38,28 +38,30 @@ def generate_unique_bill_number():
 # ------------------ SEARCH PRODUCTS FOR BILLING ------------------
 @billing_bp.route("/billing/search-products", methods=["GET"])
 def search_products_for_billing():
-    """Search products by name, model, or type for billing"""
+    """Search textile products by name, product code, or category for billing"""
     try:
         query = request.args.get('q', '').strip()
         
         if not query or len(query) < 2:
             return jsonify([]), 200
             
-        # Search in name, model, and type, only show products with stock > 0
+        # Search by name, product_code, or category — only in-stock products
         products = Product.query.filter(
             or_(
                 Product.name.ilike(f'%{query}%'),
-                Product.model.ilike(f'%{query}%'),
-                Product.type.ilike(f'%{query}%')
+                Product.product_code.ilike(f'%{query}%'),
+                Product.category.ilike(f'%{query}%')
             )
-        ).filter(Product.quantity > 0).limit(10).all()
+        ).filter(Product.quantity > 0).limit(15).all()
         
         result = [{
             'id': p.id,
             'name': p.name,
-            'model': p.model or '',
-            'type': p.type or '',
+            'productCode': p.product_code or '',
+            'category': p.category or '',
+            'unit': p.unit or '',
             'sellPrice': p.sell_price,
+            'buyPrice': p.buy_price,
             'quantity': p.quantity,
             'inStock': p.quantity > 0
         } for p in products]
@@ -72,33 +74,38 @@ def search_products_for_billing():
         return jsonify({"error": "Failed to search products"}), 400
 
 
-# ------------------ GET PRODUCT BY BARCODE ------------------
-@billing_bp.route("/billing/product/barcode/<string:barcode>", methods=["GET"])
-def get_product_by_barcode(barcode):
-    """Get product by barcode for quick billing"""
+# ------------------ GET PRODUCT BY PRODUCT CODE (SKU) ------------------
+@billing_bp.route("/billing/product/code/<string:product_code>", methods=["GET"])
+def get_product_by_code(product_code):
+    """Look up a textile product by its product code / SKU for quick billing"""
     try:
-        if not barcode:
-            return jsonify({"error": "Barcode is required"}), 400
+        if not product_code:
+            return jsonify({"error": "Product code is required"}), 400
             
-        product = Product.query.filter_by(barcode=barcode).first()
+        product = Product.query.filter(
+            Product.product_code.ilike(product_code.strip())
+        ).first()
         
         if not product:
             return jsonify({"error": "Product not found"}), 404
             
         if product.quantity <= 0:
-            return jsonify({"error": "Product out of stock"}), 400
+            return jsonify({"error": "Product is out of stock"}), 400
             
         return jsonify({
             'id': product.id,
             'name': product.name,
-            'model': product.model or '',
-            'type': product.type or '',
+            'productCode': product.product_code or '',
+            'category': product.category or '',
+            'unit': product.unit or '',
             'sellPrice': product.sell_price,
-            'quantity': product.quantity
+            'buyPrice': product.buy_price,
+            'quantity': product.quantity,
+            'inStock': product.quantity > 0
         }), 200
         
     except Exception as e:
-        print(f"Barcode error: {str(e)}")
+        print(f"Product code lookup error: {str(e)}")
         return jsonify({"error": "Failed to fetch product"}), 400
 
 
@@ -201,16 +208,18 @@ def create_bill():
         bill.customer_email = data.get('customerEmail', '')
         bill.customer_gst = data.get('customerGST', '')
         bill.customer_address = data.get('customerAddress', '')
-        bill.customer_type = data.get('customerType', 'regular')
         
-        # Vehicle Information
-        bill.vehicle_name = data.get('vehicleName', '')
-        bill.vehicle_number = data.get('vehicleNumber', '')
+        customer_type_raw = data.get('customerType', 'retail')
+        bill.customer_type = customer_type_raw if customer_type_raw else 'retail'
+        
+        # Order Reference and Delivery Note Information (stored in vehicle columns for backward compat)
+        bill.vehicle_name = data.get('orderReference', data.get('vehicleName', ''))
+        bill.vehicle_number = data.get('deliveryNote', data.get('vehicleNumber', ''))
         
         # Company Information - Fetch and store snapshot
         company_id = data.get('companyId')
         if company_id:
-            company = Company.query.get(company_id)
+            company = db.session.get(Company, company_id)
             if company:
                 bill.company_id = company.id
                 bill.company_name = company.name
@@ -224,9 +233,9 @@ def create_bill():
                 bill.company_bank_ifsc = company.bank_ifsc
                 bill.company_bank_branch = company.bank_branch
                 bill.company_upi_id = company.upi_id
-                # Store logo path if exists
-                if hasattr(company, 'logo_path') and company.logo_path:
-                    bill.company_logo = company.logo_path
+                # Store logo filename if exists (logo is stored as binary blob)
+                if company.logo_filename:
+                    bill.company_logo = company.logo_filename
         
         # Created By (User information) - Hide discount details from employee
         bill.created_by = data.get('createdBy', None)
@@ -255,7 +264,7 @@ def create_bill():
         # Add items and update stock
         items_added = []
         for item_data in data.get('items', []):
-            product = Product.query.get(item_data['productId'])
+            product = db.session.get(Product, item_data['productId'])
             
             if not product:
                 db.session.rollback()
@@ -270,15 +279,16 @@ def create_bill():
                 db.session.rollback()
                 return jsonify({"error": f"Insufficient stock for {product.name}. Available: {product.quantity}"}), 400
             
-            # Calculate item total with possible discount
+            # Calculate item total
             item_total = product.sell_price * quantity
             
-            # Create bill item with status (defaults to 'pending' from model)
+            # Create bill item — snapshot textile-specific product details
             bill_item = BillItem(
                 product_id=product.id,
                 product_name=product.name,
-                product_model=product.model or '',
-                product_type=product.type or '',
+                product_code=product.product_code or '',
+                product_category=product.category or '',
+                product_unit=product.unit or '',
                 sell_price=product.sell_price,
                 quantity=quantity,
                 total=item_total
@@ -390,7 +400,7 @@ def get_bills_with_pending_items():
         # Find all bills that have at least one pending item
         bills = Bill.query.join(BillItem).filter(
             BillItem.item_status == 'pending'
-        ).distinct(Bill.id).order_by(Bill.created_at.desc()).all()
+        ).distinct().order_by(Bill.created_at.desc()).all()
         
         result = []
         for bill in bills:
@@ -433,7 +443,7 @@ def get_bills_with_pending_items():
 def get_pending_bill_items(bill_id):
     """Get all pending items for a specific bill"""
     try:
-        bill = Bill.query.get_or_404(bill_id)
+        bill = db.get_or_404(Bill, bill_id)
         
         pending_items = BillItem.query.filter_by(
             bill_id=bill_id,
@@ -444,8 +454,9 @@ def get_pending_bill_items(bill_id):
             'id': item.id,
             'product_id': item.product_id,
             'product_name': item.product_name,
-            'product_model': item.product_model,
-            'product_type': item.product_type,
+            'product_code': item.product_code or '',
+            'product_category': item.product_category or '',
+            'product_unit': item.product_unit or '',
             'sell_price': item.sell_price,
             'quantity': item.quantity,
             'total': item.total,
@@ -458,8 +469,8 @@ def get_pending_bill_items(bill_id):
             'bill_number': bill.bill_number,
             'customer_type': bill.customer_type,
             'customer_name': bill.customer_name,
-            'vehicle_name': bill.vehicle_name,
-            'vehicle_number': bill.vehicle_number,
+            'order_reference': bill.vehicle_name or '',   # reused column
+            'delivery_note': bill.vehicle_number or '',   # reused column
             'company_name': bill.company_name,
             'items': items
         }), 200
@@ -474,8 +485,8 @@ def get_pending_bill_items(bill_id):
 def complete_bill_item(bill_id, item_id):
     """Mark a bill item as completed (inventory already updated during bill creation)"""
     try:
-        bill = Bill.query.get_or_404(bill_id)
-        item = BillItem.query.get_or_404(item_id)
+        bill = db.get_or_404(Bill, bill_id)
+        item = db.get_or_404(BillItem, item_id)
         
         if item.bill_id != bill.id:
             return jsonify({"error": "Item does not belong to this bill"}), 400
@@ -508,7 +519,7 @@ def complete_bill_item(bill_id, item_id):
 def complete_all_bill_items(bill_id):
     """Mark all pending items in a bill as completed"""
     try:
-        bill = Bill.query.get_or_404(bill_id)
+        bill = db.get_or_404(Bill, bill_id)
         
         # Get all pending items
         pending_items = BillItem.query.filter_by(
@@ -552,7 +563,8 @@ def get_all_bills():
         end_date = request.args.get('end_date')
         customer = request.args.get('customer')
         customer_type = request.args.get('customer_type')
-        vehicle_number = request.args.get('vehicle_number')
+        bill_number_search = request.args.get('bill_number')
+        order_reference = request.args.get('order_reference')
         payment_method = request.args.get('payment_method')
         payment_status = request.args.get('payment_status')
         company_id = request.args.get('company_id', type=int)
@@ -565,11 +577,16 @@ def get_all_bills():
         if end_date:
             query = query.filter(Bill.created_at <= datetime.fromisoformat(end_date))
         if customer:
-            query = query.filter(Bill.customer_name.ilike(f'%{customer}%'))
+            query = query.filter(or_(
+                Bill.customer_name.ilike(f'%{customer}%'),
+                Bill.customer_phone.ilike(f'%{customer}%')
+            ))
         if customer_type:
             query = query.filter(Bill.customer_type == customer_type)
-        if vehicle_number:
-            query = query.filter(Bill.vehicle_number.ilike(f'%{vehicle_number}%'))
+        if bill_number_search:
+            query = query.filter(Bill.bill_number.ilike(f'%{bill_number_search}%'))
+        if order_reference:
+            query = query.filter(Bill.vehicle_name.ilike(f'%{order_reference}%'))
         if payment_method:
             query = query.filter(Bill.payment_method == payment_method)
         if payment_status:
@@ -600,8 +617,8 @@ def get_all_bills():
                 'customerType': bill.customer_type,
                 'customerEmail': bill.customer_email,
                 'customerGST': bill.customer_gst,
-                'vehicleName': bill.vehicle_name,
-                'vehicleNumber': bill.vehicle_number,
+                'orderReference': bill.vehicle_name or '',
+                'deliveryNote': bill.vehicle_number or '',
                 'companyName': bill.company_name,
                 'companyGST': bill.company_gst,
                 'subtotal': round(bill.subtotal, 2),
@@ -637,7 +654,7 @@ def get_all_bills():
 def get_bill_by_id(bill_id):
     """Get detailed bill information by ID"""
     try:
-        bill = Bill.query.get_or_404(bill_id)
+        bill = db.get_or_404(Bill, bill_id)
         
         # Get payment history
         payments = Payment.query.filter_by(bill_id=bill.id).all()
@@ -647,8 +664,9 @@ def get_bill_by_id(bill_id):
             'id': item.id,
             'product_id': item.product_id,
             'product_name': item.product_name,
-            'product_model': item.product_model,
-            'product_type': item.product_type,
+            'product_code': item.product_code or '',
+            'product_category': item.product_category or '',
+            'product_unit': item.product_unit or '',
             'sell_price': item.sell_price,
             'quantity': item.quantity,
             'total': item.total,
@@ -658,8 +676,8 @@ def get_bill_by_id(bill_id):
         bill_dict = bill.to_dict()
         bill_dict['items'] = items
         bill_dict['payments'] = [p.to_dict() for p in payments]
-        bill_dict['vehicleName'] = bill.vehicle_name
-        bill_dict['vehicleNumber'] = bill.vehicle_number
+        bill_dict['orderReference'] = bill.vehicle_name or ''
+        bill_dict['deliveryNote'] = bill.vehicle_number or ''
         bill_dict['createdBy'] = bill.created_by
         bill_dict['createdByName'] = bill.created_by_name
         
@@ -710,8 +728,9 @@ def get_bill_by_number(bill_number):
             'id': item.id,
             'product_id': item.product_id,
             'product_name': item.product_name,
-            'product_model': item.product_model,
-            'product_type': item.product_type,
+            'product_code': item.product_code or '',
+            'product_category': item.product_category or '',
+            'product_unit': item.product_unit or '',
             'sell_price': item.sell_price,
             'quantity': item.quantity,
             'total': item.total,
@@ -720,8 +739,8 @@ def get_bill_by_number(bill_number):
         
         bill_dict = bill.to_dict()
         bill_dict['items'] = items
-        bill_dict['vehicleName'] = bill.vehicle_name
-        bill_dict['vehicleNumber'] = bill.vehicle_number
+        bill_dict['orderReference'] = bill.vehicle_name or ''
+        bill_dict['deliveryNote'] = bill.vehicle_number or ''
         bill_dict['createdBy'] = bill.created_by
         bill_dict['createdByName'] = bill.created_by_name
         
@@ -765,7 +784,7 @@ def get_bill_by_number(bill_number):
 def update_bill_payment(bill_id):
     """Update payment information for a bill"""
     try:
-        bill = Bill.query.get_or_404(bill_id)
+        bill = db.get_or_404(Bill, bill_id)
         data = request.get_json()
         
         # Update payment details
@@ -822,12 +841,12 @@ def update_bill_payment(bill_id):
 def cancel_bill(bill_id):
     """Cancel a bill and restore stock"""
     try:
-        bill = Bill.query.get_or_404(bill_id)
+        bill = db.get_or_404(Bill, bill_id)
         
         # Restore product quantities for items that are not completed
         for item in bill.items:
             if item.item_status != 'completed':
-                product = Product.query.get(item.product_id)
+                product = db.session.get(Product, item.product_id)
                 if product:
                     product.quantity += item.quantity
         
@@ -956,15 +975,15 @@ def get_billing_statistics():
 def void_bill_item(bill_id, item_id):
     """Void a specific item from bill and adjust stock"""
     try:
-        bill = Bill.query.get_or_404(bill_id)
-        item = BillItem.query.get_or_404(item_id)
+        bill = db.get_or_404(Bill, bill_id)
+        item = db.get_or_404(BillItem, item_id)
         
         if item.bill_id != bill.id:
             return jsonify({"error": "Item does not belong to this bill"}), 400
         
         # Only restore stock if item is not completed
         if item.item_status != 'completed':
-            product = Product.query.get(item.product_id)
+            product = db.session.get(Product, item.product_id)
             if product:
                 product.quantity += item.quantity
         
@@ -1104,186 +1123,22 @@ def get_bills_by_vehicle(vehicle_number):
     except Exception as e:
         print(f"Get bills by vehicle error: {str(e)}")
         return jsonify({"error": "Failed to fetch bills"}), 400
-# ==================== WARRANTY ROUTES (Simplified) ====================
-
-# ------------------ WARRANTY SEARCH BY BILL NUMBER ------------------
+# ------------------ WARRANTY — NOT APPLICABLE FOR TEXTILES ------------------
 @billing_bp.route("/billing/warranty/search", methods=["GET"])
 def search_warranty_by_bill():
-    """Search warranty information by bill number"""
-    try:
-        bill_number = request.args.get('bill_number')
-        
-        if not bill_number:
-            return jsonify({'error': 'Bill number is required'}), 400
-        
-        # Use raw SQL to avoid model column issues
-        # First, get the bill - using dictionary parameters
-        bill_query = """
-            SELECT id, bill_number, customer_name, customer_phone, customer_email, 
-                   created_at, total 
-            FROM bills 
-            WHERE bill_number = :bill_number
-        """
-        bill_result = db.session.execute(text(bill_query), {"bill_number": bill_number})
-        bill = bill_result.fetchone()
-        
-        if not bill:
-            return jsonify({'error': 'Bill not found'}), 404
-        
-        # Get bill items - using dictionary parameters
-        items_query = """
-            SELECT id, product_id, product_name, product_model, 
-                   quantity, sell_price, total 
-            FROM bill_items 
-            WHERE bill_id = :bill_id
-        """
-        items_result = db.session.execute(text(items_query), {"bill_id": bill[0]})
-        items = items_result.fetchall()
-        
-        warranty_items = []
-        
-        for item in items:
-            # Get product warranty period from watts field
-            product_query = """
-                SELECT id, name, model, watts 
-                FROM products 
-                WHERE id = :product_id
-            """
-            product_result = db.session.execute(text(product_query), {"product_id": item[1]})
-            product = product_result.fetchone()
-            
-            if not product:
-                warranty_period_months = 12  # Default warranty
-            else:
-                # Get warranty period from watts field (stored in months)
-                watts = product[3] if len(product) > 3 else None
-                warranty_period_months = int(watts) if watts and watts > 0 else 12
-            
-            # Warranty start date is bill creation date
-            warranty_start_date = bill[5]  # created_at column
-            warranty_end_date = warranty_start_date + relativedelta(months=warranty_period_months)
-            
-            # Calculate warranty status
-            current_date = datetime.utcnow()
-            
-            if current_date <= warranty_end_date:
-                days_left = (warranty_end_date - current_date).days
-                warranty_status = {
-                    'status': 'active',
-                    'days_left': days_left,
-                    'message': f'Warranty active. {days_left} days remaining'
-                }
-            else:
-                days_expired = (current_date - warranty_end_date).days
-                warranty_status = {
-                    'status': 'expired',
-                    'days_expired': days_expired,
-                    'message': f'Warranty expired {days_expired} days ago'
-                }
-            
-            warranty_items.append({
-                'productId': item[1],  # product_id
-                'productName': item[2],  # product_name
-                'productModel': item[3] or 'N/A',  # product_model
-                'quantity': item[4],  # quantity
-                'sellPrice': float(item[5]),  # sell_price
-                'total': float(item[6]),  # total
-                'warranty': {
-                    'warrantyPeriodMonths': warranty_period_months,
-                    'warrantyStartDate': warranty_start_date.isoformat() if warranty_start_date else None,
-                    'warrantyEndDate': warranty_end_date.isoformat() if warranty_end_date else None,
-                    'warrantyStatus': warranty_status,
-                    'isActive': warranty_status['status'] == 'active'
-                }
-            })
-        
-        # Bill information
-        bill_info = {
-            'id': bill[0],
-            'billNumber': bill[1],
-            'customerName': bill[2] or 'Walk-in Customer',
-            'customerPhone': bill[3] or '',
-            'customerEmail': bill[4] or '',
-            'billedDate': (bill[5].isoformat() + 'Z') if bill[5] else None,
-            'totalAmount': float(bill[6]) if bill[6] else 0,
-            'items': warranty_items
-        }
-        
-        return jsonify(bill_info), 200
-        
-    except Exception as e:
-        print(f"Warranty search error: {str(e)}")
-        print(traceback.format_exc())
-        return jsonify({'error': str(e)}), 500
+    """Warranty not applicable for textile products"""
+    return jsonify({
+        'applicable': False,
+        'message': 'Warranty tracking is not applicable for textile products.',
+        'items': []
+    }), 200
 
 
-# ------------------ CHECK WARRANTY FOR PRODUCT ------------------
+# ------------------ WARRANTY CHECK — NOT APPLICABLE FOR TEXTILES ------------------
 @billing_bp.route("/billing/warranty/check/<int:product_id>/<int:bill_id>", methods=["GET"])
 def check_product_warranty(product_id, bill_id):
-    """Check warranty status for a specific product in a bill"""
-    try:
-        # Get bill - using dictionary parameters
-        bill_query = """
-            SELECT id, bill_number, created_at 
-            FROM bills 
-            WHERE id = :bill_id
-        """
-        bill_result = db.session.execute(text(bill_query), {"bill_id": bill_id})
-        bill = bill_result.fetchone()
-        
-        if not bill:
-            return jsonify({'error': 'Bill not found'}), 404
-        
-        # Get product warranty period from watts field
-        product_query = """
-            SELECT id, name, model, watts 
-            FROM products 
-            WHERE id = :product_id
-        """
-        product_result = db.session.execute(text(product_query), {"product_id": product_id})
-        product = product_result.fetchone()
-        
-        if not product:
-            return jsonify({'error': 'Product not found'}), 404
-        
-        # Get warranty period from product's watts field
-        watts = product[3] if len(product) > 3 else None
-        warranty_period_months = int(watts) if watts and watts > 0 else 12
-        
-        # Warranty start date is bill creation date
-        warranty_start_date = bill[2]
-        warranty_end_date = warranty_start_date + relativedelta(months=warranty_period_months)
-        
-        # Calculate warranty status
-        current_date = datetime.utcnow()
-        
-        if current_date <= warranty_end_date:
-            days_left = (warranty_end_date - current_date).days
-            warranty_status = {
-                'status': 'active',
-                'days_left': days_left,
-                'message': f'Warranty active. {days_left} days remaining'
-            }
-        else:
-            days_expired = (current_date - warranty_end_date).days
-            warranty_status = {
-                'status': 'expired',
-                'days_expired': days_expired,
-                'message': f'Warranty expired {days_expired} days ago'
-            }
-        
-        return jsonify({
-            'productId': product[0],
-            'productName': product[1],
-            'productModel': product[2] or '',
-            'billNumber': bill[1],
-            'billedDate': warranty_start_date.isoformat(),
-            'warrantyPeriodMonths': warranty_period_months,
-            'warrantyStartDate': warranty_start_date.isoformat(),
-            'warrantyEndDate': warranty_end_date.isoformat(),
-            'warrantyStatus': warranty_status
-        }), 200
-        
-    except Exception as e:
-        print(f"Check warranty error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+    """Warranty not applicable for textile products"""
+    return jsonify({
+        'applicable': False,
+        'message': 'Warranty tracking is not applicable for textile products.'
+    }), 200

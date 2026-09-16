@@ -21,12 +21,12 @@ const Bill = () => {
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerGST, setCustomerGST] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
-  const [customerType, setCustomerType] = useState('external'); // 'internal' or 'external'
-  const [customerDiscount, setCustomerDiscount] = useState(0); // Default discount for customer type
+  const [customerType, setCustomerType] = useState('retail'); // retail, wholesale, bulk, corporate, walk-in
+  const [customerDiscount, setCustomerDiscount] = useState(0);
 
-  // Vehicle information
-  const [vehicleName, setVehicleName] = useState('');
-  const [vehicleNumber, setVehicleNumber] = useState('');
+  // Order Reference / Delivery Note (textile-specific, stored in vehicle columns)
+  const [orderReference, setOrderReference] = useState('');
+  const [deliveryNote, setDeliveryNote] = useState('');
 
   // Company information (from selected company)
   const [selectedCompany, setSelectedCompany] = useState(null);
@@ -914,7 +914,7 @@ const Bill = () => {
       random += randomChars.charAt(Math.floor(Math.random() * randomChars.length));
     }
 
-    setBillNumber(`BT-${year}${month}${day}-${random}`);
+    setBillNumber(`RVT-${year}${month}${day}-${random}`);
   };
 
   // Update date and time
@@ -942,8 +942,8 @@ const Bill = () => {
           if (draft.customerAddress !== undefined) setCustomerAddress(draft.customerAddress);
           if (draft.customerType !== undefined) setCustomerType(draft.customerType);
           if (draft.customerDiscount !== undefined) setCustomerDiscount(draft.customerDiscount);
-          if (draft.vehicleName !== undefined) setVehicleName(draft.vehicleName);
-          if (draft.vehicleNumber !== undefined) setVehicleNumber(draft.vehicleNumber);
+          if (draft.orderReference !== undefined) setOrderReference(draft.orderReference);
+          if (draft.deliveryNote !== undefined) setDeliveryNote(draft.deliveryNote);
           if (draft.discount !== undefined) setDiscount(draft.discount);
           if (draft.discountType !== undefined) setDiscountType(draft.discountType);
           if (draft.manualDiscount !== undefined) setManualDiscount(draft.manualDiscount);
@@ -979,7 +979,7 @@ const Bill = () => {
   useEffect(() => {
     if (!isDraftInitialized) return;
 
-    if (selectedProducts.length > 0 || customerPhone || vehicleNumber || (customerName && customerName !== 'Walk-in Customer')) {
+    if (selectedProducts.length > 0 || customerPhone || orderReference || (customerName && customerName !== 'Walk-in Customer')) {
       const draftData = {
         selectedProducts,
         customerName,
@@ -989,8 +989,8 @@ const Bill = () => {
         customerAddress,
         customerType,
         customerDiscount,
-        vehicleName,
-        vehicleNumber,
+        orderReference,
+        deliveryNote,
         discount,
         discountType,
         manualDiscount,
@@ -1014,8 +1014,8 @@ const Bill = () => {
     }
   }, [
     isDraftInitialized, selectedProducts, customerName, customerPhone, customerEmail,
-    customerGST, customerAddress, customerType, customerDiscount, vehicleName,
-    vehicleNumber, discount, discountType, manualDiscount, tax, taxType,
+    customerGST, customerAddress, customerType, customerDiscount, orderReference,
+    deliveryNote, discount, discountType, manualDiscount, tax, taxType,
     paidAmount, paymentMethod, paymentStatus, cashReceived, cardNumber,
     cardHolderName, upiId, transactionId, bankName, chequeNumber, billNumber
   ]);
@@ -1045,12 +1045,16 @@ const Bill = () => {
     }
   }, [paidAmount, selectedProducts, discount, tax, discountType, taxType]);
 
-  // Set discount based on customer type (only if not manually set)
+  // Set discount based on textile customer type (only if not manually set)
   useEffect(() => {
     if (!manualDiscount) {
-      if (customerType === 'internal') {
-        setCustomerDiscount(10); // 10% discount for internal customers
+      if (customerType === 'wholesale') {
+        setCustomerDiscount(10);
         setDiscount(10);
+        setDiscountType('percentage');
+      } else if (customerType === 'bulk') {
+        setCustomerDiscount(15);
+        setDiscount(15);
         setDiscountType('percentage');
       } else {
         setCustomerDiscount(0);
@@ -1245,7 +1249,7 @@ const Bill = () => {
         setCustomerEmail(customer.email || '');
         setCustomerAddress(customer.address || '');
         setCustomerGST(customer.gst || '');
-        setCustomerType(customer.type || 'external');
+        setCustomerType(customer.type || 'retail');
         setSuccess('Customer found! Details auto-filled.');
         setTimeout(() => setSuccess(''), 3000);
       }
@@ -1290,7 +1294,7 @@ const Bill = () => {
     }
   };
 
-  // Get product by barcode
+  // Get product by product code (SKU lookup)
   const getProductByBarcode = async () => {
     if (!isAuthenticated) return;
     if (!barcode.trim()) return;
@@ -1299,13 +1303,15 @@ const Bill = () => {
     setError('');
 
     try {
-      const response = await api.get(`/billing/product/barcode/${barcode}`);
+      const response = await api.get(`/billing/product/code/${encodeURIComponent(barcode.trim())}`);
       addProductToBill(response.data);
       setBarcode('');
     } catch (err) {
-      console.error('Barcode error:', err);
+      console.error('SKU lookup error:', err);
       if (err.response?.status === 401) {
         setError('Session expired. Please login again.');
+      } else if (err.response?.status === 404) {
+        setError(`Product code "${barcode}" not found`);
       } else {
         setError(err.response?.data?.error || 'Product not found');
       }
@@ -1343,7 +1349,9 @@ const Bill = () => {
           {
             id: product.id,
             name: product.name,
-            model: product.model || '',
+            productCode: product.productCode || '',
+            category: product.category || '',
+            unit: product.unit || '',
             sellPrice: product.sellPrice,
             quantity: 1,
             total: product.sellPrice,
@@ -1512,8 +1520,11 @@ const Bill = () => {
   // Reset discount to customer default
   const resetDiscountToDefault = () => {
     setManualDiscount(false);
-    if (customerType === 'internal') {
+    if (customerType === 'wholesale') {
       setDiscount(10);
+      setDiscountType('percentage');
+    } else if (customerType === 'bulk') {
+      setDiscount(15);
       setDiscountType('percentage');
     } else {
       setDiscount(0);
@@ -1557,9 +1568,9 @@ const Bill = () => {
         customerEmail: customerEmail,
         customerGST: customerGST,
         customerAddress: customerAddress,
-        customerType: customerType === 'internal' ? 'internal' : 'regular',
-        vehicleName: vehicleName,
-        vehicleNumber: vehicleNumber,
+        customerType: customerType,
+        orderReference: orderReference,
+        deliveryNote: deliveryNote,
         companyId: selectedCompany?.id,
         discount: discount,
         discountType: discountType === 'percentage' ? 'percentage' : 'amount',
@@ -1734,15 +1745,10 @@ const Bill = () => {
               text-transform: uppercase;
             }
             
-            .internal-badge {
-              background: #cce5ff;
-              color: #004085;
-            }
-            
-            .external-badge {
-              background: #fff3cd;
-              color: #856404;
-            }
+            .wholesale-badge { background: #d1fae5; color: #065f46; }
+            .bulk-badge { background: #ede9fe; color: #4c1d95; }
+            .corporate-badge { background: #dbeafe; color: #1e40af; }
+            .retail-badge { background: #fef3c7; color: #92400e; }
             
             .vehicle-section {
               margin: 8px 0;
@@ -1897,8 +1903,19 @@ const Bill = () => {
             <div class="customer-section">
               <div class="customer-row">
                 <span class="customer-label">Customer Type:</span>
-                <span class="customer-type-badge ${customerType === 'internal' ? 'internal-badge' : 'external-badge'}">
-                  ${customerType === 'internal' ? '🏢 INTERNAL' : '👤 EXTERNAL'}
+                <span class="customer-type-badge ${
+                  customerType === 'wholesale' ? 'wholesale-badge' :
+                  customerType === 'bulk' ? 'bulk-badge' :
+                  customerType === 'corporate' ? 'corporate-badge' :
+                  'retail-badge'
+                }">
+                  ${
+                    customerType === 'wholesale' ? '🏭 WHOLESALE' :
+                    customerType === 'bulk' ? '📦 BULK' :
+                    customerType === 'corporate' ? '🏢 CORPORATE' :
+                    customerType === 'walk-in' ? '🚶 WALK-IN' :
+                    '🛍️ RETAIL'
+                  }
                 </span>
               </div>
               
@@ -1936,18 +1953,18 @@ const Bill = () => {
               ` : ''}
             </div>
             
-            ${(vehicleName || vehicleNumber) ? `
+            ${(orderReference || deliveryNote) ? `
             <div class="vehicle-section">
+              ${orderReference ? `
               <div class="vehicle-row">
-                <span class="customer-label">Vehicle:</span>
-                <span class="customer-value">${vehicleName || ''}</span>
-              </div>
-              ${vehicleNumber ? `
+                <span class="customer-label">Order Ref:</span>
+                <span class="customer-value">${orderReference}</span>
+              </div>` : ''}
+              ${deliveryNote ? `
               <div class="vehicle-row">
-                <span class="customer-label">Vehicle No:</span>
-                <span class="customer-value">${vehicleNumber}</span>
-              </div>
-              ` : ''}
+                <span class="customer-label">Delivery Note:</span>
+                <span class="customer-value">${deliveryNote}</span>
+              </div>` : ''}
             </div>
             ` : ''}
             
@@ -1955,7 +1972,7 @@ const Bill = () => {
             <div class="discount-section">
               <div class="discount-amount">
                 Discount Amount: -₹${discountAmount.toFixed(2)}
-                ${!manualDiscount && customerType === 'internal' ? ' (Staff discount)' : ''}
+                ${!manualDiscount && (customerType === 'wholesale' || customerType === 'bulk') ? ' (Trade discount)' : ''}
               </div>
             </div>
             ` : ''}
@@ -1963,9 +1980,9 @@ const Bill = () => {
             <div class="bill-items">
               <div class="bill-items-header">
                 <span>Item</span>
-                <span>Price</span>
-                <span>Qty</span>
-                <span>Total</span>
+                <span>Rate</span>
+                <span>Qty/Unit</span>
+                <span>Amount</span>
               </div>
               <div>
                 ${activeProducts.length === 0 ? `
@@ -1973,13 +1990,13 @@ const Bill = () => {
                     <span>--- No items in bill ---</span>
                   </div>
                 ` : activeProducts.map(product => `
-                  <div class="bill-item">
+                   <div class="bill-item">
                     <span class="bill-item-name">
                       ${product.name.length > 12 ? product.name.substring(0, 10) + '...' : product.name}
-                      ${product.model ? `<small class="bill-item-small">${product.model}</small>` : ''}
+                      ${product.productCode ? `<small class="bill-item-small">${product.productCode}</small>` : ''}
                     </span>
                     <span>₹${product.sellPrice}</span>
-                    <span>${product.quantity}</span>
+                    <span>${product.quantity}${product.unit ? ' ' + product.unit : ''}</span>
                     <span>₹${product.total.toFixed(2)}</span>
                   </div>
                 `).join('')}
@@ -2051,8 +2068,8 @@ const Bill = () => {
             </div>
             
             <div class="bill-footer">
-              <p>Thank you for your purchase!</p>
-              <p>Goods once sold not returnable</p>
+              <p>Thank you for your business!</p>
+              <p>Quality Fabrics | No Exchange on Cut Pieces</p>
               <p>** Computer generated bill **</p>
               ${paymentMethod !== 'cash' && transactionId ? `
               <p>${paymentMethod.toUpperCase()}: ${transactionId}</p>
@@ -2363,14 +2380,14 @@ const Bill = () => {
     message += `Bill No: ${billNumber}\n`;
     message += `Date: ${currentDate} ${currentTime}\n`;
     message += `Customer: ${customerName}\n`;
-    message += `Type: ${customerType === 'internal' ? 'INTERNAL' : 'EXTERNAL'}\n`;
-    if (vehicleName) message += `Vehicle: ${vehicleName}\n`;
-    if (vehicleNumber) message += `Vehicle No: ${vehicleNumber}\n`;
+    message += `Type: ${customerType.toUpperCase()}\n`;
+    if (orderReference) message += `Order Ref: ${orderReference}\n`;
+    if (deliveryNote) message += `Delivery Note: ${deliveryNote}\n`;
     message += `================\n`;
     message += `ITEMS:\n`;
 
     activeProducts.forEach(p => {
-      message += `${p.name.substring(0, 15)}... ${p.quantity}x ₹${p.sellPrice} = ₹${p.total.toFixed(2)}\n`;
+      message += `${p.name.substring(0, 15)} ${p.quantity}${p.unit ? ' ' + p.unit : ''} x ₹${p.sellPrice} = ₹${p.total.toFixed(2)}\n`;
     });
 
     message += `================\n`;
@@ -2384,8 +2401,8 @@ const Bill = () => {
     message += `Status: ${paymentStatus.toUpperCase()}\n`;
     if (due > 0) message += `Due: ₹${due.toFixed(2)}\n`;
     message += `================\n`;
-    message += `Thank you for shopping with us!\n`;
-    message += `Goods once sold not returnable\n`;
+    message += `Thank you for your business!\n`;
+    message += `Quality Fabrics | No Exchange on Cut Pieces\n`;
     message += `Created by: ${createdBy}`;
 
     // Encode message for URL
@@ -2408,10 +2425,10 @@ const Bill = () => {
       setCustomerEmail('');
       setCustomerGST('');
       setCustomerAddress('');
-      setCustomerType('external');
+      setCustomerType('retail');
       setCustomerDiscount(0);
-      setVehicleName('');
-      setVehicleNumber('');
+      setOrderReference('');
+      setDeliveryNote('');
       setDiscount(0);
       setDiscountType('percentage');
       setManualDiscount(false);
@@ -2576,7 +2593,7 @@ const Bill = () => {
               style={baseStyles.searchInput}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Type product name or model..."
+              placeholder="Type name, product code (SKU) or category…"
               autoComplete="off"
               onFocus={(e) => {
                 e.target.style.borderColor = '#60a5fa';
@@ -2605,7 +2622,10 @@ const Bill = () => {
                       <div style={baseStyles.resultInfo}>
                         <div style={baseStyles.resultName}>{product.name}</div>
                         <div style={baseStyles.resultDetails}>
-                          {product.model ? `${product.model} | ` : ''}Stock: <span style={{ color: product.quantity > 0 ? '#34d399' : '#f87171', fontWeight: 'bold' }}>{product.quantity}</span>
+                          {product.productCode ? <span style={{ fontFamily: 'monospace', color: '#fbbf24', marginRight: '6px' }}>{product.productCode}</span> : null}
+                          {product.category ? <span style={{ color: '#a5b4fc', marginRight: '6px' }}>{product.category}</span> : null}
+                          {product.unit ? <span style={{ color: '#6ee7b7', marginRight: '6px' }}>{product.unit}</span> : null}
+                          Stock: <span style={{ color: product.quantity > 0 ? '#34d399' : '#f87171', fontWeight: 'bold' }}>{product.quantity}</span>
                         </div>
                       </div>
                       <div style={baseStyles.resultPrice}>₹{product.sellPrice}</div>
@@ -2627,7 +2647,7 @@ const Bill = () => {
               value={barcode}
               onChange={(e) => setBarcode(e.target.value)}
               onKeyPress={handleBarcodeKeyPress}
-              placeholder="📱 Scan barcode..."
+              placeholder="🏷️ Enter Product Code (SKU)…"
               onFocus={(e) => e.target.style.borderColor = '#34d399'}
               onBlur={(e) => e.target.style.borderColor = '#334155'}
             />
@@ -2660,7 +2680,10 @@ const Bill = () => {
                   <div style={baseStyles.itemInfo}>
                     <span style={baseStyles.itemName}>{product.name}</span>
                     <span style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
-                      {product.model ? `${product.model} • ` : ''}Stock: {product.maxQuantity}
+                      {product.productCode ? <span style={{ fontFamily: 'monospace', color: '#fbbf24', marginRight: '4px' }}>{product.productCode}</span> : null}
+                      {product.category ? <span style={{ color: '#a5b4fc', marginRight: '4px' }}>{product.category}</span> : null}
+                      {product.unit ? <span style={{ color: '#6ee7b7', marginRight: '4px' }}>{product.unit}</span> : null}
+                      Stock: {product.maxQuantity}
                     </span>
                   </div>
                   <div style={baseStyles.itemPrice}>₹{product.sellPrice}</div>
@@ -2758,10 +2781,17 @@ const Bill = () => {
                 <span
                   style={{
                     ...baseStyles.customerTypeBadge,
-                    ...(customerType === 'internal' ? baseStyles.internalBadge : baseStyles.externalBadge)
+                    ...(customerType === 'wholesale' ? { background: '#d1fae5', color: '#065f46' } :
+                        customerType === 'bulk' ? { background: '#ede9fe', color: '#4c1d95' } :
+                        customerType === 'corporate' ? { background: '#dbeafe', color: '#1e40af' } :
+                        { background: '#fef3c7', color: '#92400e' })
                   }}
                 >
-                  {customerType === 'internal' ? '🏢 INTERNAL' : '👤 EXTERNAL'}
+                  {customerType === 'wholesale' ? '🏭 WHOLESALE' :
+                   customerType === 'bulk' ? '📦 BULK' :
+                   customerType === 'corporate' ? '🏢 CORPORATE' :
+                   customerType === 'walk-in' ? '🚶 WALK-IN' :
+                   '🛍️ RETAIL'}
                 </span>
               </div>
 
@@ -2799,14 +2829,11 @@ const Bill = () => {
               )}
             </div>
 
-            {/* Vehicle Section */}
-
-
-            {/* Display vehicle info in print version */}
-            {(vehicleName || vehicleNumber) && (
-              <div style={{ margin: '5px 0', padding: '3px', background: '#f0f0f0', fontSize: '9px' }} className="no-print-visible">
-                <div><strong>Vehicle:</strong> {vehicleName || '-'}</div>
-                {vehicleNumber && <div><strong>Reg No:</strong> {vehicleNumber}</div>}
+            {/* Order Reference Section */}
+            {(orderReference || deliveryNote) && (
+              <div style={{ margin: '5px 0', padding: '3px', background: '#f0f0f0', fontSize: '9px' }}>
+                {orderReference && <div><strong>Order Ref:</strong> {orderReference}</div>}
+                {deliveryNote && <div><strong>Delivery Note:</strong> {deliveryNote}</div>}
               </div>
             )}
 
@@ -2816,11 +2843,14 @@ const Bill = () => {
                 value={customerType}
                 onChange={(e) => {
                   setCustomerType(e.target.value);
-                  setManualDiscount(false); // Reset manual discount flag when customer type changes
+                  setManualDiscount(false);
                 }}
               >
-                <option value="external">👤 External Customer</option>
-                <option value="internal">🏢 Internal (Staff)</option>
+                <option value="retail">🛍️ Retail Customer</option>
+                <option value="wholesale">🏭 Wholesale (10% off)</option>
+                <option value="bulk">📦 Bulk Order (15% off)</option>
+                <option value="corporate">🏢 Corporate</option>
+                <option value="walk-in">🚶 Walk-in</option>
               </select>
 
               <input
@@ -2867,6 +2897,22 @@ const Bill = () => {
                 onChange={(e) => setCustomerGST(e.target.value)}
                 placeholder="GST Number (if applicable)"
               />
+
+              <input
+                type="text"
+                style={baseStyles.customerInput}
+                value={orderReference}
+                onChange={(e) => setOrderReference(e.target.value)}
+                placeholder="Order Reference / PO Number (optional)"
+              />
+
+              <input
+                type="text"
+                style={baseStyles.customerInput}
+                value={deliveryNote}
+                onChange={(e) => setDeliveryNote(e.target.value)}
+                placeholder="Delivery Note No. (optional)"
+              />
             </div>
 
             {/* Discount Section - Enhanced */}
@@ -2876,7 +2922,10 @@ const Bill = () => {
                 onClick={() => setShowDiscountInput(!showDiscountInput)}
               >
                 <span style={baseStyles.discountTitle}>
-                  {manualDiscount ? '✏️ Manual Discount' : '💰 Default Discount'}
+                  {manualDiscount ? '✏️ Manual Discount' :
+                    customerType === 'wholesale' ? '🏭 Wholesale Discount (10%)' :
+                    customerType === 'bulk' ? '📦 Bulk Discount (15%)' :
+                    '💰 Discount'}
                 </span>
                 <span style={baseStyles.discountToggle}>
                   {showDiscountInput ? '▼' : '▶'}
@@ -2909,9 +2958,9 @@ const Bill = () => {
 
               <div style={baseStyles.discountAmount}>
                 Discount Amount: -₹{discountAmount.toFixed(2)}
-                {!manualDiscount && customerType === 'internal' && (
+                {!manualDiscount && (customerType === 'wholesale' || customerType === 'bulk') && (
                   <span style={{ fontSize: '8px', marginLeft: '5px', color: '#666' }}>
-                    (Staff discount)
+                    (Trade discount)
                   </span>
                 )}
               </div>
@@ -2936,9 +2985,9 @@ const Bill = () => {
             <div className="bill-items">
               <div className="bill-items-header">
                 <span>Item</span>
-                <span>Price</span>
-                <span>Qty</span>
-                <span>Total</span>
+                <span>Rate</span>
+                <span>Qty/Unit</span>
+                <span>Amount</span>
               </div>
               <div>
                 {activeProducts.length === 0 ? (
@@ -2953,12 +3002,12 @@ const Bill = () => {
                           ? product.name.substring(0, 10) + '...'
                           : product.name
                         }
-                        {product.model && (
-                          <small style={baseStyles.billItemSmall}>{product.model}</small>
+                        {product.productCode && (
+                          <small style={baseStyles.billItemSmall}>{product.productCode}</small>
                         )}
                       </span>
                       <span>₹{product.sellPrice}</span>
-                      <span>{product.quantity}</span>
+                      <span>{product.quantity}{product.unit ? ` ${product.unit}` : ''}</span>
                       <span>₹{product.total.toFixed(2)}</span>
                     </div>
                   ))
@@ -3165,8 +3214,8 @@ const Bill = () => {
             </div>
 
             <div className="bill-footer">
-              <p style={baseStyles.billFooterP}>Thank you for your purchase!</p>
-              <p style={baseStyles.billFooterP}>Goods once sold not returnable</p>
+              <p style={baseStyles.billFooterP}>Thank you for your business!</p>
+              <p style={baseStyles.billFooterP}>Quality Fabrics | No Exchange on Cut Pieces</p>
               <p style={baseStyles.billFooterP}>** Computer generated bill **</p>
               {paymentMethod !== 'cash' && transactionId && (
                 <p style={baseStyles.billFooterP}>
