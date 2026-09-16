@@ -89,7 +89,7 @@ def update_discount_range(range_id):
     """Update a discount range"""
     try:
         data = request.get_json()
-        discount_range = DiscountRange.query.get(range_id)
+        discount_range = db.session.get(DiscountRange, range_id)
         
         if not discount_range:
             return jsonify({"error": "Discount range not found"}), 404
@@ -158,7 +158,7 @@ def update_discount_range(range_id):
 def delete_discount_range(range_id):
     """Delete a discount range"""
     try:
-        discount_range = DiscountRange.query.get(range_id)
+        discount_range = db.session.get(DiscountRange, range_id)
         
         if not discount_range:
             return jsonify({"error": "Discount range not found"}), 404

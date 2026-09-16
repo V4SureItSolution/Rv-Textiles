@@ -61,7 +61,7 @@ def get_all_salary_structures():
 def get_salary_structure(employee_id):
     """Get salary structure for a specific employee"""
     try:
-        employee = Employee.query.get_or_404(employee_id)
+        employee = db.get_or_404(Employee, employee_id)
         struct = SalaryStructure.query.filter_by(employee_id=employee.id).first()
         if not struct:
             return jsonify({
@@ -96,7 +96,7 @@ def save_salary_structure():
         if not employee_id:
             return jsonify({'error': 'employee_id is required'}), 400
             
-        employee = Employee.query.get(employee_id)
+        employee = db.session.get(Employee, employee_id)
         if not employee:
             return jsonify({'error': 'Employee not found'}), 404
             
@@ -376,7 +376,7 @@ def get_payroll_report_summary():
 def update_payroll(payroll_id):
     """Update payroll details (e.g. bonus, deductions, notes)"""
     try:
-        payroll = Payroll.query.get_or_404(payroll_id)
+        payroll = db.get_or_404(Payroll, payroll_id)
         data = request.get_json() or {}
         
         if 'bonus' in data:
@@ -418,7 +418,7 @@ def update_payroll(payroll_id):
 def process_payroll_payment(payroll_id):
     """Mark payroll as Paid with payment date, mode, and transaction reference & generate notification"""
     try:
-        payroll = Payroll.query.get_or_404(payroll_id)
+        payroll = db.get_or_404(Payroll, payroll_id)
         data = request.get_json() or {}
         
         payroll.payment_status = 'Paid'
@@ -457,7 +457,7 @@ def process_payroll_payment(payroll_id):
 def mark_notification_read(payroll_id):
     """Mark employee salary notification as read"""
     try:
-        payroll = Payroll.query.get_or_404(payroll_id)
+        payroll = db.get_or_404(Payroll, payroll_id)
         payroll.notification_read = True
         db.session.commit()
         return jsonify({'message': 'Notification marked as read'}), 200
@@ -471,7 +471,7 @@ def mark_notification_read(payroll_id):
 def get_payslip_data(payroll_id):
     """Get full detailed payslip document data"""
     try:
-        payroll = Payroll.query.get_or_404(payroll_id)
+        payroll = db.get_or_404(Payroll, payroll_id)
         struct = SalaryStructure.query.filter_by(employee_id=payroll.employee_id).first()
         emp = payroll.employee
         

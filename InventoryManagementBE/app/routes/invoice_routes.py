@@ -110,7 +110,7 @@ def get_invoices():
 def get_invoice(id):
     """Get single invoice by ID"""
     try:
-        invoice = Invoice.query.get(id)
+        invoice = db.session.get(Invoice, id)
         if not invoice:
             return jsonify({
                 'success': False,
@@ -222,7 +222,7 @@ def create_invoice():
                 }), 400
             
             # Get product details
-            product = Product.query.get(item_data['productId'])
+            product = db.session.get(Product, item_data['productId'])
             if not product:
                 db.session.rollback()
                 return jsonify({
@@ -256,7 +256,7 @@ def create_invoice():
                 invoice_id=invoice.id,
                 product_id=product.id,
                 product_name=product.name,
-                product_model=product.model or '',
+                product_model=product.product_code or '',
                 hsn_code=item_data.get('hsnCode', ''),
                 price=price,
                 quantity=quantity,
@@ -284,7 +284,7 @@ def create_invoice():
         db.session.commit()
         
         # Fetch the created invoice with items
-        created_invoice = Invoice.query.get(invoice.id)
+        created_invoice = db.session.get(Invoice, invoice.id)
         
         try:
             invoice_dict = created_invoice.to_dict()
@@ -316,7 +316,7 @@ def create_invoice():
 def update_invoice(id):
     """Update existing invoice"""
     try:
-        invoice = Invoice.query.get(id)
+        invoice = db.session.get(Invoice, id)
         if not invoice:
             return jsonify({
                 'success': False,
@@ -400,7 +400,7 @@ def update_invoice(id):
             
             # Restore stock for existing items
             for item in invoice.items:
-                product = Product.query.get(item.product_id)
+                product = db.session.get(Product, item.product_id)
                 if product:
                     product.quantity += item.quantity
                     if hasattr(product, 'calculate_values'):
@@ -418,7 +418,7 @@ def update_invoice(id):
                         'error': 'Product ID is required for each item'
                     }), 400
                 
-                product = Product.query.get(item_data['productId'])
+                product = db.session.get(Product, item_data['productId'])
                 if not product:
                     db.session.rollback()
                     return jsonify({
@@ -449,7 +449,7 @@ def update_invoice(id):
                     invoice_id=invoice.id,
                     product_id=product.id,
                     product_name=product.name,
-                    product_model=product.model or '',
+                    product_model=product.product_code or '',
                     hsn_code=item_data.get('hsnCode', ''),
                     price=price,
                     quantity=quantity,
@@ -471,7 +471,7 @@ def update_invoice(id):
         db.session.commit()
         
         # Fetch updated invoice
-        updated_invoice = Invoice.query.get(id)
+        updated_invoice = db.session.get(Invoice, id)
         
         try:
             invoice_dict = updated_invoice.to_dict()
@@ -502,7 +502,7 @@ def update_invoice(id):
 def delete_invoice(id):
     """Delete invoice"""
     try:
-        invoice = Invoice.query.get(id)
+        invoice = db.session.get(Invoice, id)
         if not invoice:
             return jsonify({
                 'success': False,
@@ -518,7 +518,7 @@ def delete_invoice(id):
         
         # Restore stock
         for item in invoice.items:
-            product = Product.query.get(item.product_id)
+            product = db.session.get(Product, item.product_id)
             if product:
                 product.quantity += item.quantity
                 if hasattr(product, 'calculate_values'):
@@ -546,7 +546,7 @@ def delete_invoice(id):
 def update_payment_status(id):
     """Update payment status"""
     try:
-        invoice = Invoice.query.get(id)
+        invoice = db.session.get(Invoice, id)
         if not invoice:
             return jsonify({
                 'success': False,
@@ -597,7 +597,7 @@ def update_payment_status(id):
 def update_invoice_status(id):
     """Update invoice status"""
     try:
-        invoice = Invoice.query.get(id)
+        invoice = db.session.get(Invoice, id)
         if not invoice:
             return jsonify({
                 'success': False,
@@ -725,7 +725,7 @@ def generate_number():
 def send_invoice_email(id):
     """Send invoice via email"""
     try:
-        invoice = Invoice.query.get(id)
+        invoice = db.session.get(Invoice, id)
         if not invoice:
             return jsonify({
                 'success': False,

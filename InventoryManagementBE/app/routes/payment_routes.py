@@ -70,7 +70,7 @@ def get_supplier_payments(supplier_id):
     """Get all payments for a specific supplier"""
     try:
         # Check if supplier exists
-        supplier = Supplier.query.get(supplier_id)
+        supplier = db.session.get(Supplier, supplier_id)
         if not supplier:
             return jsonify({
                 'success': False,
@@ -117,7 +117,7 @@ def create_payment(supplier_id):
             }), 400
         
         # Check if supplier exists
-        supplier = Supplier.query.get(supplier_id)
+        supplier = db.session.get(Supplier, supplier_id)
         if not supplier:
             return jsonify({
                 'success': False,
@@ -181,7 +181,7 @@ def create_payment(supplier_id):
 def delete_payment(payment_id):
     """Delete a payment record"""
     try:
-        payment = SupplierPayment.query.get(payment_id)
+        payment = db.session.get(SupplierPayment, payment_id)
         if not payment:
             return jsonify({
                 'success': False,
@@ -215,7 +215,7 @@ def delete_payment(payment_id):
 def update_payment(payment_id):
     """Update a payment record"""
     try:
-        payment = SupplierPayment.query.get(payment_id)
+        payment = db.session.get(SupplierPayment, payment_id)
         if not payment:
             return jsonify({
                 'success': False,
@@ -282,7 +282,7 @@ def get_supplier_payment_summary(supplier_id):
     """Get payment summary for a specific supplier"""
     try:
         # Check if supplier exists
-        supplier = Supplier.query.get(supplier_id)
+        supplier = db.session.get(Supplier, supplier_id)
         if not supplier:
             return jsonify({
                 'success': False,
@@ -463,7 +463,7 @@ def get_payment_history(supplier_id):
         per_page = request.args.get('per_page', 10, type=int)
         
         # Check if supplier exists
-        supplier = Supplier.query.get(supplier_id)
+        supplier = db.session.get(Supplier, supplier_id)
         if not supplier:
             return jsonify({
                 'success': False,

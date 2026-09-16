@@ -347,7 +347,7 @@ def get_supplier(supplier_id):
             return response
             
         print(f"👤 GET /api/suppliers/{supplier_id} called")
-        supplier = Supplier.query.get(supplier_id)
+        supplier = db.session.get(Supplier, supplier_id)
         if not supplier:
             return jsonify({"error": "Supplier not found"}), 404
         
@@ -437,7 +437,7 @@ def update_supplier(supplier_id):
             
         print(f"✏️ PUT /api/suppliers/{supplier_id} called")
         
-        supplier = Supplier.query.get(supplier_id)
+        supplier = db.session.get(Supplier, supplier_id)
         if not supplier:
             return jsonify({"error": "Supplier not found"}), 404
         
@@ -484,7 +484,7 @@ def delete_supplier(supplier_id):
             
         print(f"🗑️ DELETE /api/suppliers/{supplier_id} called")
         
-        supplier = Supplier.query.get(supplier_id)
+        supplier = db.session.get(Supplier, supplier_id)
         if not supplier:
             return jsonify({"error": "Supplier not found"}), 404
         
@@ -517,7 +517,7 @@ def get_supplier_items(supplier_id):
             
         print(f"📦 GET /api/suppliers/{supplier_id}/items called")
         
-        supplier = Supplier.query.get(supplier_id)
+        supplier = db.session.get(Supplier, supplier_id)
         if not supplier:
             return jsonify({"error": "Supplier not found"}), 404
         
@@ -543,7 +543,7 @@ def get_item(item_id):
             
         print(f"🔍 GET /api/items/{item_id} called")
         
-        item = Item.query.get(item_id)
+        item = db.session.get(Item, item_id)
         if not item:
             return jsonify({"error": "Item not found"}), 404
         
@@ -569,7 +569,7 @@ def create_item(supplier_id):
         print(f"➕ POST /api/suppliers/{supplier_id}/items called")
         
         # Verify supplier exists
-        supplier = Supplier.query.get(supplier_id)
+        supplier = db.session.get(Supplier, supplier_id)
         if not supplier:
             print(f"Error: Supplier {supplier_id} not found")
             return jsonify({"error": "Supplier not found"}), 404
@@ -646,7 +646,7 @@ def update_item(item_id):
             
         print(f"✏️ PUT /api/items/{item_id} called")
         
-        item = Item.query.get(item_id)
+        item = db.session.get(Item, item_id)
         if not item:
             return jsonify({"error": "Item not found"}), 404
         
@@ -699,7 +699,7 @@ def delete_item(item_id):
             
         print(f"🗑️ DELETE /api/items/{item_id} called")
         
-        item = Item.query.get(item_id)
+        item = db.session.get(Item, item_id)
         if not item:
             return jsonify({"error": "Item not found"}), 404
         
@@ -785,7 +785,7 @@ def bulk_create_items():
             return jsonify({"error": "supplier_id is required"}), 400
         
         # Verify supplier exists
-        supplier = Supplier.query.get(supplier_id)
+        supplier = db.session.get(Supplier, supplier_id)
         if not supplier:
             return jsonify({"error": f"Supplier {supplier_id} not found"}), 404
         
@@ -877,7 +877,7 @@ def bulk_update_items():
                     errors.append("Item ID is required for update")
                     continue
                 
-                item = Item.query.get(item_id)
+                item = db.session.get(Item, item_id)
                 if not item:
                     errors.append(f"Item {item_id} not found")
                     continue

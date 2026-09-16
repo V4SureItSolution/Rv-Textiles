@@ -75,7 +75,7 @@ def create_enquiry():
 # ---------- UPDATE ENQUIRY ----------
 @enquiry_bp.route('/enquiries/<int:enquiry_id>', methods=['PUT'])
 def update_enquiry(enquiry_id):
-    enquiry = Enquiry.query.get_or_404(enquiry_id)
+    enquiry = db.get_or_404(Enquiry, enquiry_id)
     data = request.json
 
     enquiry.customer_name = data.get('customer_name', enquiry.customer_name)
@@ -109,7 +109,7 @@ def update_enquiry(enquiry_id):
 # ---------- DELETE ENQUIRY ----------
 @enquiry_bp.route('/enquiries/<int:enquiry_id>', methods=['DELETE'])
 def delete_enquiry(enquiry_id):
-    enquiry = Enquiry.query.get_or_404(enquiry_id)
+    enquiry = db.get_or_404(Enquiry, enquiry_id)
     db.session.delete(enquiry)
     db.session.commit()
     return jsonify({'message': 'Enquiry deleted successfully'}), 200

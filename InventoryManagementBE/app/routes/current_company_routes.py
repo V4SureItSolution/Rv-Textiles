@@ -123,7 +123,7 @@ def get_all_companies():
 def get_company(id):
     """Get a single company by ID"""
     try:
-        company = Company.query.get(id)
+        company = db.session.get(Company, id)
         if not company or company.deleted_at:
             return jsonify({'error': 'Company not found'}), 404
         return jsonify(company.to_dict()), 200
@@ -235,7 +235,7 @@ def create_company():
 def update_company(id):
     """Update an existing company with logo attachment"""
     try:
-        company = Company.query.get(id)
+        company = db.session.get(Company, id)
         if not company or company.deleted_at:
             return jsonify({'error': 'Company not found'}), 404
         
@@ -330,7 +330,7 @@ def update_company(id):
 def delete_company(id):
     """Permanently delete a company"""
     try:
-        company = Company.query.get(id)
+        company = db.session.get(Company, id)
         if not company:
             return jsonify({'error': 'Company not found'}), 404
         
@@ -348,7 +348,7 @@ def delete_company(id):
 def soft_delete_company(id):
     """Soft delete a company"""
     try:
-        company = Company.query.get(id)
+        company = db.session.get(Company, id)
         if not company or company.deleted_at:
             return jsonify({'error': 'Company not found'}), 404
         
@@ -365,7 +365,7 @@ def soft_delete_company(id):
 def restore_company(id):
     """Restore a soft-deleted company"""
     try:
-        company = Company.query.get(id)
+        company = db.session.get(Company, id)
         if not company:
             return jsonify({'error': 'Company not found'}), 404
         
@@ -385,7 +385,7 @@ def restore_company(id):
 def toggle_company_status(id):
     """Toggle company active/inactive status"""
     try:
-        company = Company.query.get(id)
+        company = db.session.get(Company, id)
         if not company or company.deleted_at:
             return jsonify({'error': 'Company not found'}), 404
         
@@ -443,7 +443,7 @@ def search_companies():
 def get_company_logo(id):
     """Get company logo image"""
     try:
-        company = Company.query.get(id)
+        company = db.session.get(Company, id)
         if not company or not company.logo:
             return jsonify({'error': 'Logo not found'}), 404
         

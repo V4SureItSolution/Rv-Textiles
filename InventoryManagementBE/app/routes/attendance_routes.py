@@ -36,7 +36,7 @@ def find_employee(data_or_args, current_user_id=None):
     # 3. Match by numeric primary key ID
     if not employee and emp_id:
         try:
-            employee = Employee.query.get(int(emp_id))
+            employee = db.session.get(Employee, int(emp_id))
         except (ValueError, TypeError):
             employee = None
 
@@ -366,7 +366,7 @@ def update_attendance(attendance_id):
     try:
         data = request.get_json()
         
-        attendance = Attendance.query.get(attendance_id)
+        attendance = db.session.get(Attendance, attendance_id)
         if not attendance:
             return jsonify({'error': 'Attendance record not found'}), 404
         

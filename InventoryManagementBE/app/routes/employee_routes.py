@@ -205,7 +205,7 @@ def get_current_user():
         return jsonify({'error': 'Not logged in'}), 401
     
     try:
-        employee = Employee.query.get(session['user_id'])
+        employee = db.session.get(Employee, session['user_id'])
         if not employee:
             session.clear()
             return jsonify({'error': 'User not found'}), 404
@@ -262,7 +262,7 @@ def get_employees():
 def get_employee(id):
     """Get a single employee by ID"""
     try:
-        employee = Employee.query.get(id)
+        employee = db.session.get(Employee, id)
         if not employee:
             return jsonify({'error': 'Employee not found'}), 404
         return jsonify(employee.to_dict()), 200
@@ -316,7 +316,7 @@ def create_employee():
         
         # Validate company if company_id is provided
         if company_id:
-            company = Company.query.get(company_id)
+            company = db.session.get(Company, company_id)
             if not company:
                 return jsonify({'error': 'Invalid company selected'}), 400
             current_company = company.name
@@ -378,7 +378,7 @@ def create_employee():
 def update_employee(id):
     """Update an existing employee"""
     try:
-        employee = Employee.query.get(id)
+        employee = db.session.get(Employee, id)
         if not employee:
             return jsonify({'error': 'Employee not found'}), 404
         
@@ -413,7 +413,7 @@ def update_employee(id):
         company_id = request.form.get('company_id')
         
         if company_id:
-            company = Company.query.get(company_id)
+            company = db.session.get(Company, company_id)
             if not company:
                 return jsonify({'error': 'Invalid company selected'}), 400
             employee.current_company = company.name
@@ -491,7 +491,7 @@ def update_employee(id):
 def delete_employee(id):
     """Delete an employee"""
     try:
-        employee = Employee.query.get(id)
+        employee = db.session.get(Employee, id)
         if not employee:
             return jsonify({'error': 'Employee not found'}), 404
         

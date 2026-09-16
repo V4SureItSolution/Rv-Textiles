@@ -22,8 +22,8 @@ def search_products():
         products = Product.query.filter(
             or_(
                 Product.name.ilike(f'%{query}%'),
-                Product.model.ilike(f'%{query}%'),
-                Product.type.ilike(f'%{query}%')
+                Product.product_code.ilike(f'%{query}%'),
+                Product.category.ilike(f'%{query}%')
             )
         ).limit(20).all()
         
@@ -33,8 +33,8 @@ def search_products():
             result.append({
                 'id': product.id,
                 'name': product.name,
-                'model': product.model or '',
-                'type': product.type or '',
+                'model': product.product_code or '',
+                'type': product.category or '',
                 'sellPrice': product.sell_price,
                 'price': product.sell_price,
                 'mrp': product.sell_price,
@@ -105,7 +105,7 @@ def create_quotation():
         # Add items
         items_total = 0
         for item_data in data['items']:
-            product = Product.query.get(item_data['productId'])
+            product = db.session.get(Product, item_data['productId'])
             if not product:
                 db.session.rollback()
                 return jsonify({'error': f'Product with ID {item_data["productId"]} not found'}), 404
@@ -114,7 +114,7 @@ def create_quotation():
             item.quotation_id = quotation.id
             item.product_id = product.id
             item.product_name = product.name
-            item.product_model = product.model or ''
+            item.product_model = product.product_code or ''
             item.price = float(item_data.get('price', product.sell_price))
             item.quantity = int(item_data['quantity'])
             item.gst = float(item_data.get('gst', getattr(product, 'gst_rate', 0)))
@@ -177,7 +177,7 @@ def get_quotations():
 def get_quotation(id):
     """Get a single quotation by ID"""
     try:
-        quotation = Quotation.query.get_or_404(id)
+        quotation = db.get_or_404(Quotation, id)
         return jsonify(quotation.to_dict()), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -188,7 +188,7 @@ def get_quotation(id):
 def update_quotation(id):
     """Update a quotation"""
     try:
-        quotation = Quotation.query.get_or_404(id)
+        quotation = db.get_or_404(Quotation, id)
         
         # Only draft quotations can be updated
         if quotation.status != 'draft':
@@ -234,7 +234,7 @@ def update_quotation(id):
             # Add new items
             items_total = 0
             for item_data in data['items']:
-                product = Product.query.get(item_data['productId'])
+                product = db.session.get(Product, item_data['productId'])
                 if not product:
                     db.session.rollback()
                     return jsonify({'error': f'Product with ID {item_data["productId"]} not found'}), 404
@@ -243,7 +243,7 @@ def update_quotation(id):
                 item.quotation_id = quotation.id
                 item.product_id = product.id
                 item.product_name = product.name
-                item.product_model = product.model or ''
+                item.product_model = product.product_code or ''
                 item.price = float(item_data.get('price', product.sell_price))
                 item.quantity = int(item_data['quantity'])
                 item.gst = float(item_data.get('gst', getattr(product, 'gst_rate', 0)))
@@ -275,7 +275,7 @@ def update_quotation(id):
 def update_quotation_status(id):
     """Update quotation status"""
     try:
-        quotation = Quotation.query.get_or_404(id)
+        quotation = db.get_or_404(Quotation, id)
         data = request.get_json()
         
         new_status = data.get('status')
@@ -301,7 +301,7 @@ def update_quotation_status(id):
 def delete_quotation(id):
     """Delete a quotation"""
     try:
-        quotation = Quotation.query.get_or_404(id)
+        quotation = db.get_or_404(Quotation, id)
         
         # Only draft quotations can be deleted
         if quotation.status != 'draft':

@@ -62,7 +62,7 @@ def create_user_type():
 def update_user_type(id):
     """Update an existing user type"""
     try:
-        user_type = UserType.query.get(id)
+        user_type = db.session.get(UserType, id)
         
         if not user_type:
             return jsonify({'error': 'User type not found'}), 404
@@ -108,7 +108,7 @@ def update_user_type(id):
 def delete_user_type(id):
     """Delete a user type"""
     try:
-        user_type = UserType.query.get(id)
+        user_type = db.session.get(UserType, id)
         
         if not user_type:
             return jsonify({'error': 'User type not found'}), 404

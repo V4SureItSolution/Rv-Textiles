@@ -79,7 +79,7 @@ def create_product():
         supplier_id = data.get('supplierId') or None
         if supplier_id:
             supplier_id = int(supplier_id)
-            if not Supplier.query.get(supplier_id):
+            if not db.session.get(Supplier, supplier_id):
                 supplier_id = None
 
         product = Product(
@@ -204,7 +204,7 @@ def get_products():
 @product_bp.route("/products/<int:id>", methods=["GET"])
 def get_product(id):
     try:
-        product = Product.query.get_or_404(id)
+        product = db.get_or_404(Product, id)
         return jsonify(product.to_dict()), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -214,7 +214,7 @@ def get_product(id):
 @product_bp.route("/products/<int:id>", methods=["PUT"])
 def update_product(id):
     try:
-        product = Product.query.get_or_404(id)
+        product = db.get_or_404(Product, id)
         data = request.get_json()
 
         if data.get('buyPrice') is not None or data.get('sellPrice') is not None or data.get('quantity') is not None:
@@ -253,7 +253,7 @@ def update_product(id):
             supplier_id = data['supplierId'] or None
             if supplier_id:
                 supplier_id = int(supplier_id)
-                if not Supplier.query.get(supplier_id):
+                if not db.session.get(Supplier, supplier_id):
                     supplier_id = None
             product.supplier_id = supplier_id
 
@@ -271,7 +271,7 @@ def update_product(id):
 @product_bp.route("/products/<int:id>", methods=["DELETE"])
 def delete_product(id):
     try:
-        product = Product.query.get_or_404(id)
+        product = db.get_or_404(Product, id)
         db.session.delete(product)
         db.session.commit()
         return jsonify({"message": "Product deleted successfully"}), 200

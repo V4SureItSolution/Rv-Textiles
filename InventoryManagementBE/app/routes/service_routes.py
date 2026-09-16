@@ -61,7 +61,7 @@ def search_services():
 def get_service(service_id):
     """Get service by ID"""
     try:
-        service = Service.query.get(service_id)
+        service = db.session.get(Service, service_id)
         if not service:
             return jsonify({'error': 'Service not found'}), 404
         
@@ -114,7 +114,7 @@ def create_service():
 def update_service(service_id):
     """Update an existing service"""
     try:
-        service = Service.query.get(service_id)
+        service = db.session.get(Service, service_id)
         if not service:
             return jsonify({'error': 'Service not found'}), 404
         
@@ -152,7 +152,7 @@ def update_service(service_id):
 def toggle_service_status(service_id):
     """Activate or deactivate a service"""
     try:
-        service = Service.query.get(service_id)
+        service = db.session.get(Service, service_id)
         if not service:
             return jsonify({'error': 'Service not found'}), 404
         
@@ -177,7 +177,7 @@ def toggle_service_status(service_id):
 def delete_service(service_id):
     """Delete a service (soft delete by setting is_active=False)"""
     try:
-        service = Service.query.get(service_id)
+        service = db.session.get(Service, service_id)
         if not service:
             return jsonify({'error': 'Service not found'}), 404
         
@@ -251,7 +251,7 @@ def add_service_item(bill_id):
         db.session.add(item)
         
         # Update bill totals
-        bill = Bill.query.get(bill_id)
+        bill = db.session.get(Bill, bill_id)
         if bill:
             bill.total = (bill.total or 0) + total
         
@@ -275,7 +275,7 @@ def add_service_item(bill_id):
 def update_service_item(item_id):
     """Update a service item"""
     try:
-        item = ServiceBillItem.query.get(item_id)
+        item = db.session.get(ServiceBillItem, item_id)
         if not item:
             return jsonify({'error': 'Service item not found'}), 404
         
@@ -295,7 +295,7 @@ def update_service_item(item_id):
         item.total = (item.price * item.quantity) + item.gst_amount
         
         # Update bill totals
-        bill = Bill.query.get(item.bill_id)
+        bill = db.session.get(Bill, item.bill_id)
         if bill:
             bill.total = (bill.total or 0) - old_total + item.total
         
@@ -318,7 +318,7 @@ def update_service_item(item_id):
 def delete_service_item(item_id):
     """Delete a service item"""
     try:
-        item = ServiceBillItem.query.get(item_id)
+        item = db.session.get(ServiceBillItem, item_id)
         if not item:
             return jsonify({'error': 'Service item not found'}), 404
         
@@ -328,7 +328,7 @@ def delete_service_item(item_id):
         db.session.delete(item)
         
         # Update bill totals
-        bill = Bill.query.get(bill_id)
+        bill = db.session.get(Bill, bill_id)
         if bill:
             bill.total = max(0, (bill.total or 0) - item_total)
         
@@ -566,7 +566,7 @@ def create_service_bill():
 def get_service_bill(bill_id):
     """Get a specific service bill by ID"""
     try:
-        bill = Bill.query.get(bill_id)
+        bill = db.session.get(Bill, bill_id)
         if not bill:
             return jsonify({'error': 'Bill not found'}), 404
         
