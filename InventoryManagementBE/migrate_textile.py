@@ -32,6 +32,7 @@ new_cols = {
     'category': 'VARCHAR(100) NULL',
     'unit': 'VARCHAR(50) NULL',
     'supplier_id': 'INT NULL',
+    'mrp': 'FLOAT NULL',
 }
 for col, defn in new_cols.items():
     if col not in existing_cols:
