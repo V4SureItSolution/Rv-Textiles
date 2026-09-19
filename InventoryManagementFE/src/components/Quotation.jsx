@@ -42,11 +42,11 @@ const QuotationPage = () => {
 
   // Company details
   const companyDetails = {
-    name: "RV Textiles",
-    address: "No.71, M.T.H.road (Opp padi post office), Padi, Chennai - 600 050",
-    phone: "98657 09626",
-    email: "hiprintsolutions@gmail.com",
-    gstin: "33ABCDE1234F1Z5"
+    name: "RV Fashion",
+    address: "#1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003",
+    phone: "8220912322 / 9843738588",
+    email: "",
+    gstin: "33GAHPR3113J1ZP"
   };
 
   // State for quotations list
@@ -935,9 +935,9 @@ const QuotationPage = () => {
         <body>
           <div class="header">
             <img src="/avva-logo.jpeg" class="company-logo" alt="RV Textiles Logo">
-            <div class="company-name">RV Textiles</div>
-            <div class="company-details">No.71, M.T.H.road (Opp padi post office), Padi, Chennai - 600 050</div>
-            <div class="company-details">Phone: 98657 09626 | Email: hiprintsolutions@gmail.com | GST: 33ABCDE1234F1Z5</div>
+            <div class="company-name">RV Fashion</div>
+            <div class="company-details">#1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003</div>
+            <div class="company-details">Phone: 8220912322 / 9843738588 | GST: 33GAHPR3113J1ZP</div>
           </div>       
           
           <div class="document-title">QUOTATION</div>

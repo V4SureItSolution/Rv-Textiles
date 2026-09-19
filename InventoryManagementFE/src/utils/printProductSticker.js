@@ -2,7 +2,7 @@ import JsBarcode from "jsbarcode";
 
 /**
  * ================================================================
- * PRODUCT STICKER PRINTING — RV TEXTILES
+ * PRODUCT STICKER PRINTING — RV FASHION
  * ================================================================
  *
  * Printer:
@@ -20,11 +20,11 @@ import JsBarcode from "jsbarcode";
  *   Row gap = 2.5 mm
  *
  * CONTENT:
- *   - Store Title: "RV Textiles"
+ *   - Store Title: "RV FASHION"
  *   - Product Name
  *   - Barcode SVG (CODE128)
  *   - Barcode Text / SKU
- *   - Price Section: MRP (strikethrough) and Selling Price clearly next to it
+ *   - Price Section: Clean MRP (no strikethrough, no divider lines)
  */
 
 export const printProductSticker = (
@@ -36,7 +36,7 @@ export const printProductSticker = (
   const {
     copies: explicitCopies,
     autoPrint = true,
-    storeName = "RV TEXTILES",
+    storeName = "RV FASHION",
     pageWidth = 101.6,
     pageHeight = stickerHeightDefault(options),
     stickerWidth = 50,
@@ -151,11 +151,7 @@ export const printProductSticker = (
       return Number(product.MRP);
     }
     const sell = getSellingPrice(product);
-    if (sell > 0) {
-      // Default to 25% markup if MRP is not explicitly given, so strikethrough MRP is populated automatically
-      return Math.round(sell * 1.25);
-    }
-    return 0;
+    return sell > 0 ? sell : 0;
   };
 
   // ==============================================================
@@ -198,11 +194,11 @@ export const printProductSticker = (
 
     const productCode = getProductCode(product);
     const productName = getProductName(product);
-    const rawMrp = getMrp(product);
     const rawSellingPrice = getSellingPrice(product);
+    const rawMrp = getMrp(product);
 
-    const mrpStr = Number.isFinite(rawMrp) ? rawMrp.toFixed(2) : "0.00";
-    const sellingPriceStr = Number.isFinite(rawSellingPrice) ? rawSellingPrice.toFixed(2) : mrpStr;
+    const activePrice = rawSellingPrice > 0 ? rawSellingPrice : (rawMrp > 0 ? rawMrp : 0);
+    const priceDisplayStr = Number.isFinite(activePrice) ? activePrice.toFixed(2) : "0.00";
     const barcodeSvg = generateBarcode(productCode);
 
     return `
@@ -227,13 +223,10 @@ export const printProductSticker = (
           ${escapeHtml(productCode)}
         </div>
 
-        <!-- PRICE SECTION: MRP (strikethrough) and Selling Price clearly next to it -->
+        <!-- PRICE SECTION (MRP Only, No Lines, No Strikethrough) -->
         <div class="price-section">
-          <span class="mrp">
-            MRP: &#8377;${mrpStr}
-          </span>
-          <span class="selling-price">
-            PRICE: &#8377;${sellingPriceStr}
+          <span class="mrp-price">
+            MRP: &#8377;${priceDisplayStr}
           </span>
         </div>
       </div>
@@ -314,7 +307,7 @@ export const printProductSticker = (
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>RV Textiles - Product Stickers</title>
+<title>RV Fashion - Product Stickers</title>
 <style>
 /* GLOBAL RESET */
 *, *::before, *::after {
@@ -480,7 +473,7 @@ html, body {
   background: transparent !important;
 }
 
-/* STORE NAME */
+/* STORE NAME (No Border Line) */
 .sticker-header {
   width: 100%;
   height: 2.8mm;
@@ -492,13 +485,12 @@ html, body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  border-bottom: 0.25mm solid #000;
   margin: 0;
   padding: 0;
   letter-spacing: 0.5px;
 }
 
-/* PRODUCT NAME */
+/* PRODUCT NAME (Shifted slightly downwards) */
 .product-name {
   width: 100%;
   height: 2.8mm;
@@ -509,7 +501,7 @@ html, body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin: 0;
+  margin: 0.8mm 0 0 0;
   padding: 0;
 }
 
@@ -522,7 +514,7 @@ html, body {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  margin: 0.2mm 0 0 0;
+  margin: 0.5mm 0 0 0;
   padding: 0;
 }
 
@@ -548,38 +540,28 @@ html, body {
   white-space: nowrap;
   overflow: hidden;
   text-align: center;
-  margin: 0;
+  margin: 0.3mm 0 0 0;
   padding: 0;
   letter-spacing: 0.5px;
 }
 
-/* PRICE SECTION: Side-by-side layout with MRP strikethrough & Selling Price clearly next to it */
+/* PRICE SECTION: Centered MRP only (No Border Line, No Strikethrough) */
 .price-section {
   width: 100%;
-  height: 5.2mm;
-  flex: 0 0 5.2mm;
+  height: 4.8mm;
+  flex: 0 0 4.8mm;
   display: flex;
   flex-direction: row;
   justify-content: center;
   align-items: center;
-  gap: 2.5mm;
-  border-top: 0.25mm solid #000;
-  margin: 0.2mm 0 0 0;
+  margin: 0.6mm 0 0 0;
   padding: 0 0.5mm;
   line-height: 1;
   overflow: hidden;
 }
 
-.mrp {
-  font-size: 5pt;
-  font-weight: 700;
-  text-decoration: line-through;
-  color: #333;
-  white-space: nowrap;
-}
-
-.selling-price {
-  font-size: 6.5pt;
+.mrp-price {
+  font-size: 6.8pt;
   font-weight: 900;
   color: #000;
   white-space: nowrap;
@@ -736,7 +718,7 @@ html, body {
 </div>
 
 ${autoPrint
-  ? `
+      ? `
   <script>
     window.addEventListener("load", function() {
       setTimeout(function() {
@@ -745,8 +727,8 @@ ${autoPrint
     });
   </script>
 `
-  : ""
-}
+      : ""
+    }
 
 </body>
 </html>

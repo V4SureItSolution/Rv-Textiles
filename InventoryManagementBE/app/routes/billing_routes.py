@@ -3,7 +3,7 @@ from app.models.billing import Bill, BillItem, Payment
 from app.models.product import Product
 from app.models.current_company import Company
 from app import db
-from sqlalchemy import or_, and_, func, text
+from sqlalchemy import or_, and_, func, text, case
 from datetime import datetime, timedelta
 import traceback
 import random
@@ -402,13 +402,18 @@ def get_bills_with_pending_items():
             BillItem.item_status == 'pending'
         ).distinct().order_by(Bill.created_at.desc()).all()
         
+        bill_ids = [bill.id for bill in bills]
+        counts_map = {}
+        if bill_ids:
+            counts = db.session.query(
+                BillItem.bill_id,
+                func.sum(case((BillItem.item_status == 'pending', 1), else_=0)).label('pending_items')
+            ).filter(BillItem.bill_id.in_(bill_ids)).group_by(BillItem.bill_id).all()
+            counts_map = {row[0]: int(row[1] or 0) for row in counts}
+        
         result = []
         for bill in bills:
-            # Count pending items for this bill
-            pending_count = BillItem.query.filter_by(
-                bill_id=bill.id, 
-                item_status='pending'
-            ).count()
+            pending_count = counts_map.get(bill.id, 0)
             
             result.append({
                 'id': bill.id,
@@ -419,8 +424,8 @@ def get_bills_with_pending_items():
                 'vehicleName': bill.vehicle_name,
                 'vehicleNumber': bill.vehicle_number,
                 'companyName': bill.company_name,
-                'total': round(bill.total, 2),
-                'paidAmount': round(bill.paid_amount, 2),
+                'total': round(bill.total, 2) if bill.total else 0.0,
+                'paidAmount': round(bill.paid_amount, 2) if bill.paid_amount else 0.0,
                 'pendingItems': pending_count,
                 'createdAt': (bill.created_at.isoformat() + 'Z') if bill.created_at else None,
                 'createdBy': bill.created_by,
@@ -600,14 +605,26 @@ def get_all_bills():
         # Paginate
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         
+        bill_ids = [bill.id for bill in pagination.items]
+        
+        # Batch aggregate item counts and pending item counts in 1 single SQL query
+        counts_map = {}
+        if bill_ids:
+            counts = db.session.query(
+                BillItem.bill_id,
+                func.count(BillItem.id).label('total_items'),
+                func.sum(case((BillItem.item_status == 'pending', 1), else_=0)).label('pending_items')
+            ).filter(BillItem.bill_id.in_(bill_ids)).group_by(BillItem.bill_id).all()
+            
+            counts_map = {
+                row[0]: (int(row[1] or 0), int(row[2] or 0))
+                for row in counts
+            }
+        
         # Format response
         bills = []
         for bill in pagination.items:
-            # Count pending items
-            pending_count = BillItem.query.filter_by(
-                bill_id=bill.id, 
-                item_status='pending'
-            ).count()
+            item_count, pending_count = counts_map.get(bill.id, (0, 0))
             
             bills.append({
                 'id': bill.id,
@@ -621,14 +638,14 @@ def get_all_bills():
                 'deliveryNote': bill.vehicle_number or '',
                 'companyName': bill.company_name,
                 'companyGST': bill.company_gst,
-                'subtotal': round(bill.subtotal, 2),
-                'discount': round(bill.discount, 2),
-                'tax': round(bill.tax, 2),
-                'total': round(bill.total, 2),
-                'paidAmount': round(bill.paid_amount, 2),
+                'subtotal': round(bill.subtotal, 2) if bill.subtotal else 0.0,
+                'discount': round(bill.discount, 2) if bill.discount else 0.0,
+                'tax': round(bill.tax, 2) if bill.tax else 0.0,
+                'total': round(bill.total, 2) if bill.total else 0.0,
+                'paidAmount': round(bill.paid_amount, 2) if bill.paid_amount else 0.0,
                 'paymentMethod': bill.payment_method,
                 'paymentStatus': bill.payment_status,
-                'itemCount': len(bill.items),
+                'itemCount': item_count,
                 'pendingItems': pending_count,
                 'createdAt': (bill.created_at.isoformat() + 'Z') if bill.created_at else None,
                 'createdBy': bill.created_by,

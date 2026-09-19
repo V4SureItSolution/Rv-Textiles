@@ -54,12 +54,12 @@ const Warranty = () => {
   
   // Company/Shop Details from Backend
   const [companyDetails, setCompanyDetails] = useState({
-    name: "RV Textiles",
-    address: "No.71, M.T.H.road (Opp padi post office)",
-    city: "Padi, Chennai - 600 050",
-    phone: "93423 01582",
+    name: "RV Fashion",
+    address: "#1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003",
+    city: "Tiruvallur",
+    phone: "8220912322 / 9843738588",
     email: "",
-    gst: "",
+    gst: "33GAHPR3113J1ZP",
     logo: null,
     logoUrl: null
   });

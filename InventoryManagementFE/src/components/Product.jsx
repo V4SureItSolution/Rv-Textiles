@@ -390,7 +390,7 @@ export default function ItemsPage() {
     };
     printProductSticker(printItem, {
       copies: parseInt(stickerCopies) || 1,
-      storeName: "RV TEXTILES",
+      storeName: "RV FASHION",
     });
     showMessage("success", `Sticker print initiated for ${stickerProduct.name}`);
   };
@@ -398,7 +398,7 @@ export default function ItemsPage() {
   const handlePrintAllStickers = () => {
     if (items.length === 0) return;
     printProductSticker(items, {
-      storeName: "RV TEXTILES",
+      storeName: "RV FASHION",
     });
     showMessage("success", `Sticker print initiated for all ${items.length} products`);
     setShowStickerModal(false);
@@ -987,7 +987,7 @@ export default function ItemsPage() {
                   boxSizing: "border-box",
                   overflow: "hidden",
                 }}>
-                  {/* Store Name */}
+                  {/* Store Name (No Border Line) */}
                   <div style={{
                     width: "100%",
                     fontSize: "11px",
@@ -995,75 +995,66 @@ export default function ItemsPage() {
                     textAlign: "center",
                     textTransform: "uppercase",
                     letterSpacing: "0.8px",
-                    borderBottom: "1px solid #000000",
-                    paddingBottom: "2px",
+                    paddingTop: "2px",
+                    paddingBottom: "1px",
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                   }}>
-                    RV TEXTILES
+                    RV FASHION
                   </div>
 
-                  {/* Product Name */}
+                  {/* Product Name (Shifted slightly downwards) */}
                   <div style={{
                     width: "100%",
-                    fontSize: "10px",
+                    fontSize: "10.5px",
                     fontWeight: "700",
                     textAlign: "center",
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
-                    paddingTop: "2px",
+                    marginTop: "6px",
+                    paddingBottom: "1px",
                   }} title={stickerProduct.name}>
                     {stickerProduct.name || "Textile Item"}
                   </div>
 
                   {/* Barcode SVG */}
-                  <div style={{ width: "100%", display: "flex", justifyContent: "center", alignItems: "center", margin: "1px 0" }}>
-                    <svg ref={previewSvgRef} style={{ maxWidth: "210px", height: "34px", display: "block" }} />
+                  <div style={{ width: "100%", display: "flex", justifyContent: "center", alignItems: "center", margin: "3px 0 2px 0" }}>
+                    <svg ref={previewSvgRef} style={{ maxWidth: "210px", height: "35px", display: "block" }} />
                   </div>
 
                   {/* Barcode Number */}
                   <div style={{
-                    fontSize: "9px",
+                    fontSize: "9.5px",
                     fontFamily: "'Courier New', monospace",
                     fontWeight: "700",
                     letterSpacing: "0.8px",
                     textAlign: "center",
                     lineHeight: "1",
+                    marginTop: "1px",
                   }}>
                     {stickerBarcode || "000000"}
                   </div>
 
-                  {/* Price Section: MRP Strikethrough & Selling Price Clearly Next To It */}
+                  {/* Price Section: Clean MRP (No Border Lines, No Strikethrough) */}
                   <div style={{
                     width: "100%",
-                    borderTop: "1px solid #000000",
                     marginTop: "auto",
-                    paddingTop: "2px",
+                    paddingBottom: "4px",
                     display: "flex",
                     flexDirection: "row",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: "12px",
                     lineHeight: "1.2",
                   }}>
                     <span style={{
-                      fontSize: "9.5px",
-                      fontWeight: "700",
-                      textDecoration: "line-through",
-                      color: "#dc2626",
-                      whiteSpace: "nowrap",
-                    }}>
-                      MRP: ₹{parseFloat(stickerMrp || 0).toFixed(2)}
-                    </span>
-                    <span style={{
-                      fontSize: "11.5px",
+                      fontSize: "12px",
                       fontWeight: "900",
                       color: "#000000",
                       whiteSpace: "nowrap",
                     }}>
-                      PRICE: ₹{parseFloat(stickerSellPrice || 0).toFixed(2)}
+                      MRP: ₹{parseFloat(stickerSellPrice || stickerMrp || 0).toFixed(2)}
                     </span>
                   </div>
                 </div>

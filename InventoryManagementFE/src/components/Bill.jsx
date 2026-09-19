@@ -3,6 +3,27 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { formatDate, formatTime, formatDateTime, parseDateTime } from '../utils/dateUtils';
 
+// Helper function to convert number to words (Indian numbering system)
+const numberToWords = (num) => {
+  if (num === null || num === undefined || isNaN(num)) return 'Zero';
+  const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  const convert = (n) => {
+    if (n === 0) return '';
+    if (n < 20) return a[n];
+    if (n < 100) return b[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + a[n % 10] : '');
+    if (n < 1000) return a[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' and ' + convert(n % 100) : '');
+    if (n < 100000) return convert(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 !== 0 ? ' ' + convert(n % 1000) : '');
+    if (n < 10000000) return convert(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 !== 0 ? ' ' + convert(n % 100000) : '');
+    return convert(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 !== 0 ? ' ' + convert(n % 10000000) : '');
+  };
+
+  const intNum = Math.round(Number(num));
+  if (intNum === 0) return 'Zero';
+  return convert(intNum).trim();
+};
+
 const Bill = () => {
   // State management
   const [searchQuery, setSearchQuery] = useState('');
@@ -74,13 +95,15 @@ const Bill = () => {
   const [fetchingCustomer, setFetchingCustomer] = useState(false);
   const [isDraftInitialized, setIsDraftInitialized] = useState(false);
 
-  // Shop details (will be overridden by selected company)
+  // Shop details (defaulting to RV Fashion template)
   const defaultShopDetails = {
-    name: 'RV Textiles',
-    address: 'No.20, Satya Sai Nagar',
-    city: ' Madhavaram, Chennai, Tamil Nadu 600060',
-    phone: '',
-    gst: '',
+    name: 'RV Fashion',
+    subtitle: 'RV FASHION TIRUVALLUR',
+    subtitle2: 'RV ENTERPRISES',
+    address: '#1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003',
+    city: 'Tiruvallur',
+    phone: '8220912322 / 9843738588',
+    gst: '33GAHPR3113J1ZP',
   };
 
   const [shopDetails, setShopDetails] = useState(defaultShopDetails);
@@ -448,23 +471,72 @@ const Bill = () => {
     },
     billPaper: {
       background: 'white',
-      padding: '15px 12px',
+      padding: '12px 10px',
       border: '1px solid #ccc',
-      boxShadow: '0 0 10px rgba(0,0,0,0.1)',
+      boxShadow: '0 0 15px rgba(0,0,0,0.12)',
       position: 'relative',
       marginBottom: '15px',
-      borderRadius: '3px',
-      width: '280px',
+      borderRadius: '2px',
+      width: '300px',
       margin: '0 auto',
-      fontFamily: "'Courier New', monospace",
+      fontFamily: "'Courier New', Courier, monospace",
       fontSize: '11px',
-      lineHeight: '1.3',
+      lineHeight: '1.25',
+      color: '#000',
+    },
+    receiptBrand: {
+      textAlign: 'center',
+      fontSize: '26px',
+      fontWeight: '900',
+      letterSpacing: '2px',
+      fontFamily: "Arial, Helvetica, sans-serif",
+      color: '#000',
+      lineHeight: '1.1',
+      marginBottom: '2px',
+    },
+    receiptTagline: {
+      textAlign: 'center',
+      fontSize: '8px',
+      letterSpacing: '2px',
+      color: '#444',
+      marginBottom: '4px',
+    },
+    receiptSubtitle: {
+      textAlign: 'center',
+      fontSize: '11px',
+      fontWeight: 'bold',
+      marginBottom: '2px',
+    },
+    receiptHeaderP: {
+      textAlign: 'center',
+      fontSize: '8.5px',
+      margin: '1px 0',
+      lineHeight: '1.2',
+      color: '#000',
+    },
+    receiptDividerSolid: {
+      borderTop: '1px solid #000',
+      margin: '4px 0',
+    },
+    receiptDividerDashed: {
+      borderTop: '1px dashed #000',
+      margin: '4px 0',
+    },
+    receiptDividerDotted: {
+      borderTop: '1px dotted #000',
+      margin: '3px 0',
+    },
+    receiptSalesInvoice: {
+      textAlign: 'center',
+      fontSize: '13px',
+      fontWeight: 'bold',
+      padding: '2px 0',
+      margin: '2px 0',
     },
     billHeader: {
       textAlign: 'center',
-      marginBottom: '12px',
-      paddingBottom: '8px',
-      borderBottom: '1px dashed #333',
+      marginBottom: '8px',
+      paddingBottom: '4px',
     },
     billHeaderH1: {
       fontSize: '16px',
@@ -480,24 +552,22 @@ const Bill = () => {
       lineHeight: '1.2',
     },
     billInfo: {
-      margin: '10px 0',
-      padding: '6px 0',
-      borderTop: '1px dashed #333',
-      borderBottom: '1px dashed #333',
+      margin: '6px 0',
+      padding: '4px 0',
     },
     billInfoRow: {
       display: 'flex',
       justifyContent: 'space-between',
       marginBottom: '2px',
-      fontSize: '10px',
+      fontSize: '9.5px',
     },
     billNumber: {
       fontWeight: 'bold',
-      color: '#007bff',
+      color: '#000',
     },
     customerSection: {
-      margin: '10px 0',
-      padding: '8px',
+      margin: '6px 0',
+      padding: '6px',
       background: '#f9f9f9',
       borderRadius: '2px',
       border: '1px solid #e9ecef',
@@ -505,15 +575,15 @@ const Bill = () => {
     customerRow: {
       display: 'flex',
       justifyContent: 'space-between',
-      marginBottom: '4px',
-      fontSize: '10px',
+      marginBottom: '2px',
+      fontSize: '9.5px',
     },
     customerLabel: {
       fontWeight: 'bold',
-      color: '#555',
+      color: '#333',
     },
     customerValue: {
-      color: '#333',
+      color: '#000',
       maxWidth: '180px',
       textAlign: 'right',
     },
@@ -552,7 +622,7 @@ const Bill = () => {
       fontSize: '10px',
     },
     billItems: {
-      margin: '10px 0',
+      margin: '6px 0',
     },
     billItemsHeader: {
       display: 'grid',
@@ -1619,7 +1689,7 @@ const Bill = () => {
     }
   };
 
-  // Generate HTML content for bill with updated shop details
+  // Generate HTML content for bill with RV Fashion Sales Invoice template
   const generateBillHTML = () => {
     const subtotal = calculateSubtotal();
     const discountAmount = calculateDiscountAmount();
@@ -1629,11 +1699,22 @@ const Bill = () => {
     const change = calculateChange();
     const activeProducts = selectedProducts.filter(p => p.quantity > 0);
 
+    const totalQuantity = activeProducts.reduce((sum, p) => sum + (parseInt(p.quantity) || 0), 0);
+    const totalGrossSale = activeProducts.reduce((sum, p) => sum + ((parseFloat(p.mrp) || parseFloat(p.sellPrice) || 0) * (parseInt(p.quantity) || 0)), 0);
+    const promoDiscount = Math.max(0, totalGrossSale - subtotal);
+    const totalSavings = promoDiscount + discountAmount;
+    const subtotalAfterDisc = Math.max(0, subtotal - discountAmount);
+    const taxableAmount = subtotalAfterDisc / 1.18;
+    const cgstAmount = taxableAmount * 0.09;
+    const sgstAmount = taxableAmount * 0.09;
+    const roundOff = 0.00;
+    const wordsTotal = numberToWords(total);
+
     return `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Bill - ${billNumber}</title>
+          <title>Sales Invoice - ${billNumber}</title>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
@@ -1645,438 +1726,357 @@ const Bill = () => {
             
             body {
               margin: 0;
-              padding: 20px;
+              padding: 10px 0;
               width: 80mm;
-              font-family: 'Courier New', monospace;
+              font-family: 'Courier New', Courier, monospace;
               font-size: 11px;
-              line-height: 1.3;
-              background: white;
+              color: #000;
+              background: #fff;
+              line-height: 1.25;
             }
             
             #billPaper {
               width: 280px;
               margin: 0 auto;
-              padding: 12px;
+              padding: 6px 8px;
               background: white;
             }
             
-            .bill-header {
+            .store-brand {
               text-align: center;
-              margin-bottom: 20px;
-            }
-            .bill-logo {
-              max-width: 120px;
-              max-height: 60px;
-              margin-bottom: 5px;
-              object-fit: contain;
-            }
-            .bill-header h1 {
-              font-size: 16px;
-              letter-spacing: 1px;
-              margin-bottom: 3px;
-              color: #333;
-              font-weight: bold;
+              font-size: 26px;
+              font-weight: 900;
+              letter-spacing: 2px;
+              font-family: Arial, Helvetica, sans-serif;
+              color: #000;
+              line-height: 1.1;
+              margin-bottom: 2px;
             }
             
-            .bill-header .owner {
-              font-size: 10px;
-              font-weight: bold;
-              color: #333;
-              margin: 2px 0;
+            .store-tagline {
+              text-align: center;
+              font-size: 8px;
+              letter-spacing: 2px;
+              color: #555;
+              margin-bottom: 4px;
             }
             
-            .bill-header p {
-              font-size: 9px;
-              color: #666;
+            .store-subtitle, .store-subtitle2 {
+              text-align: center;
+              font-size: 11px;
+              font-weight: bold;
+              margin-bottom: 2px;
+            }
+            
+            .store-address, .store-gstin, .store-phone {
+              text-align: center;
+              font-size: 8.5px;
               margin: 1px 0;
               line-height: 1.2;
             }
             
-            .bill-info {
-              margin: 10px 0;
-              padding: 6px 0;
+            .divider-solid {
+              border-top: 1px solid #000;
+              margin: 4px 0;
+            }
+            
+            .divider-dashed {
               border-top: 1px dashed #000;
-              border-bottom: 1px dashed #000;
+              margin: 4px 0;
             }
             
-            .bill-info-row {
+            .divider-dotted {
+              border-top: 1px dotted #000;
+              margin: 3px 0;
+            }
+            
+            .invoice-title {
+              text-align: center;
+              font-size: 13px;
+              font-weight: bold;
+              padding: 2px 0;
+              margin: 2px 0;
+            }
+            
+            .invoice-meta-row {
               display: flex;
               justify-content: space-between;
-              margin-bottom: 2px;
-              font-size: 10px;
+              font-size: 9.5px;
+              margin: 1px 0;
             }
             
-            .bill-number {
-              font-weight: bold;
-              color: #007bff;
-            }
-            
-            .customer-section {
-              margin: 10px 0;
-              padding: 8px;
-              background: #f9f9f9;
-              border-radius: 2px;
-              border: 1px solid #e9ecef;
-            }
-            
-            .customer-row {
+            .customer-meta-row {
               display: flex;
               justify-content: space-between;
-              margin-bottom: 4px;
-              font-size: 10px;
+              font-size: 9.5px;
+              margin: 2px 0;
+              font-weight: 600;
             }
             
-            .customer-label {
-              font-weight: bold;
-              color: #555;
+            .items-table {
+              width: 100%;
+              margin: 4px 0;
             }
             
-            .customer-value {
-              color: #333;
-              max-width: 180px;
+            .items-head-1, .items-row-1 {
+              display: grid;
+              grid-template-columns: 18px 75px 24px 38px 45px 50px;
+              font-size: 9px;
               text-align: right;
             }
             
-            .customer-type-badge {
-              padding: 2px 6px;
-              border-radius: 3px;
-              font-size: 9px;
-              font-weight: bold;
-              text-transform: uppercase;
+            .items-head-1 div:first-child, .items-head-1 div:nth-child(2),
+            .items-row-1 div:first-child, .items-row-1 div:nth-child(2) {
+              text-align: left;
             }
             
-            .wholesale-badge { background: #d1fae5; color: #065f46; }
-            .bulk-badge { background: #ede9fe; color: #4c1d95; }
-            .corporate-badge { background: #dbeafe; color: #1e40af; }
-            .retail-badge { background: #fef3c7; color: #92400e; }
-            
-            .vehicle-section {
-              margin: 8px 0;
-              padding: 6px;
-              background: #f0f0f0;
-              border-radius: 2px;
-              border: 1px solid #ddd;
-            }
-            
-            .vehicle-row {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 4px;
-              font-size: 10px;
-            }
-            
-            .bill-items {
-              margin: 10px 0;
-            }
-            
-            .bill-items-header {
+            .items-head-2, .items-row-2 {
               display: grid;
-              grid-template-columns: 2fr 1fr 1fr 1.5fr;
-              font-weight: bold;
-              padding: 4px 0;
-              border-bottom: 1px solid #000;
-              font-size: 10px;
-              background: #f0f0f0;
-              padding-left: 2px;
-            }
-            
-            .bill-item {
-              display: grid;
-              grid-template-columns: 2fr 1fr 1fr 1.5fr;
-              padding: 3px 0;
-              border-bottom: 1px dotted #ccc;
-              font-size: 9px;
-              padding-left: 2px;
-            }
-            
-            .bill-item-empty {
-              text-align: center;
-              color: #999;
-              padding: 10px;
-              font-style: italic;
-              font-size: 10px;
-            }
-            
-            .bill-item-name {
-              display: flex;
-              flex-direction: column;
-            }
-            
-            .bill-item-small {
-              font-size: 7px;
-              color: #666;
-            }
-            
-            .bill-summary {
-              margin: 10px 0;
-              padding: 8px 0;
-              border-top: 1px solid #000;
-            }
-            
-            .summary-row {
-              display: flex;
-              justify-content: space-between;
+              grid-template-columns: 18px 65px 120px 45px;
+              font-size: 8.5px;
+              color: #222;
               margin-bottom: 3px;
-              font-size: 10px;
             }
             
-            .summary-row-total {
+            .items-head-2 div:last-child, .items-row-2 div:last-child {
+              text-align: right;
+            }
+            
+            .items-head-1, .items-head-2 {
               font-weight: bold;
-              font-size: 12px;
-              border-top: 1px dashed #000;
-              padding-top: 6px;
-              margin-top: 6px;
-              color: #333;
             }
             
-            .payment-section {
-              margin: 10px 0;
-              padding: 8px;
-              background: #f0f0f0;
-              border-radius: 2px;
-              border: 1px solid #ddd;
-              font-size: 10px;
-            }
-            
-            .payment-row {
+            .totals-row {
               display: flex;
               justify-content: space-between;
-              margin-bottom: 4px;
-              align-items: center;
-            }
-            
-            .bill-footer {
-              text-align: center;
-              margin-top: 15px;
-              padding-top: 10px;
-              border-top: 1px dashed #000;
-              font-size: 8px;
-            }
-            
-            .bill-footer p {
-              margin-bottom: 2px;
-              color: #666;
-            }
-            
-            .change-amount {
+              font-size: 9.5px;
               font-weight: bold;
-              color: ${paidAmount >= total ? '#28a745' : '#dc3545'};
-              font-size: 10px;
+              padding: 2px 0;
             }
             
-            .created-by {
-              margin-top: 8px;
-              padding-top: 5px;
-              border-top: 1px dotted #ccc;
-              font-size: 8px;
+            .gst-section {
+              margin: 4px 0;
+              font-size: 9px;
+            }
+            
+            .gst-title {
+              font-weight: bold;
+              font-size: 9.5px;
+              margin-bottom: 2px;
+            }
+            
+            .gst-grid {
+              display: grid;
+              grid-template-columns: 65px 50px 45px 45px 40px;
+              text-align: right;
+              font-size: 8.5px;
+              margin: 1px 0;
+            }
+            
+            .gst-grid div:first-child {
+              text-align: left;
+            }
+            
+            .gst-header {
+              font-weight: bold;
+            }
+            
+            .calc-row {
+              display: flex;
+              justify-content: space-between;
+              font-size: 9.5px;
+              margin: 1.5px 0;
+            }
+            
+            .calc-row-bold {
+              font-weight: bold;
+              font-size: 11px;
+            }
+            
+            .amount-words {
+              font-size: 9px;
+              font-weight: bold;
+              margin: 4px 0 2px 0;
+            }
+            
+            .receipt-footer {
               text-align: center;
-              color: #666;
+              font-size: 8px;
+              margin-top: 6px;
+              line-height: 1.3;
+            }
+            
+            .receipt-footer .policy {
+              margin-bottom: 4px;
+            }
+            
+            .receipt-footer .thank-you {
+              font-size: 9.5px;
+              font-weight: bold;
+              margin: 3px 0 1px 0;
+            }
+            
+            .receipt-footer .store-sign {
+              font-size: 9px;
             }
           </style>
         </head>
         <body>
           <div id="billPaper">
-            <div class="bill-header">
-              <img src="/avva-logo.jpeg" class="bill-logo" alt="RV Textiles Logo">
-              <h1>${shopDetails.name}</h1>
-              <p>${shopDetails.address}</p>
-              <p>${shopDetails.city}</p>
-              ${shopDetails.phone ? `<p>Ph: ${shopDetails.phone}</p>` : ''}
-              ${shopDetails.gst ? `<p>GST: ${shopDetails.gst}</p>` : ''}
-            </div>
+            <div class="store-brand">${(shopDetails.name || 'RV FASHION').toUpperCase()}</div>
+            <div class="store-subtitle">${shopDetails.subtitle || `${(shopDetails.name || 'RV FASHION').toUpperCase()} TIRUVALLUR`}</div>
+            <div class="store-subtitle2">${shopDetails.subtitle2 || 'RV ENTERPRISES'}</div>
+            <div class="store-address">${shopDetails.address || '#1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003'}</div>
+            <div class="store-gstin">GSTIN : ${shopDetails.gst || '33GAHPR3113J1ZP'}</div>
+            <div class="store-phone">Ph:${shopDetails.phone || '8220912322 / 9843738588'}</div>
             
-            <div class="bill-info">
-              <div class="bill-info-row">
-                <span>Bill No:</span>
-                <span class="bill-number">${billNumber}</span>
-              </div>
-              <div class="bill-info-row">
-                <span>Date:</span>
-                <span>${currentDate}</span>
-              </div>
-              <div class="bill-info-row">
-                <span>Time:</span>
-                <span>${currentTime}</span>
-              </div>
-            </div>
+            <div class="divider-solid"></div>
+            <div class="invoice-title">Sales Invoice</div>
+            <div class="divider-solid"></div>
             
-            <div class="customer-section">
-              <div class="customer-row">
-                <span class="customer-label">Customer Type:</span>
-                <span class="customer-type-badge ${
-                  customerType === 'wholesale' ? 'wholesale-badge' :
-                  customerType === 'bulk' ? 'bulk-badge' :
-                  customerType === 'corporate' ? 'corporate-badge' :
-                  'retail-badge'
-                }">
-                  ${
-                    customerType === 'wholesale' ? '🏭 WHOLESALE' :
-                    customerType === 'bulk' ? '📦 BULK' :
-                    customerType === 'corporate' ? '🏢 CORPORATE' :
-                    customerType === 'walk-in' ? '🚶 WALK-IN' :
-                    '🛍️ RETAIL'
-                  }
-                </span>
-              </div>
-              
-              <div class="customer-row">
-                <span class="customer-label">Name:</span>
-                <span class="customer-value">${customerName}</span>
-              </div>
-              
-              ${customerPhone ? `
-              <div class="customer-row">
-                <span class="customer-label">Phone:</span>
-                <span class="customer-value">${customerPhone}</span>
-              </div>
-              ` : ''}
-              
-              ${customerEmail ? `
-              <div class="customer-row">
-                <span class="customer-label">Email:</span>
-                <span class="customer-value">${customerEmail}</span>
-              </div>
-              ` : ''}
-              
-              ${customerAddress ? `
-              <div class="customer-row">
-                <span class="customer-label">Address:</span>
-                <span class="customer-value">${customerAddress}</span>
-              </div>
-              ` : ''}
-              
-              ${customerGST ? `
-              <div class="customer-row">
-                <span class="customer-label">GST:</span>
-                <span class="customer-value">${customerGST}</span>
-              </div>
-              ` : ''}
+            <div class="invoice-meta-row">
+              <span>Invoice No : ${billNumber}</span>
             </div>
-            
-            ${(orderReference || deliveryNote) ? `
-            <div class="vehicle-section">
-              ${orderReference ? `
-              <div class="vehicle-row">
-                <span class="customer-label">Order Ref:</span>
-                <span class="customer-value">${orderReference}</span>
-              </div>` : ''}
-              ${deliveryNote ? `
-              <div class="vehicle-row">
-                <span class="customer-label">Delivery Note:</span>
-                <span class="customer-value">${deliveryNote}</span>
-              </div>` : ''}
+            <div class="invoice-meta-row">
+              <span>Date: ${currentDate} ${currentTime}</span>
             </div>
-            ` : ''}
+            <div class="divider-dashed"></div>
             
-            ${discount > 0 ? `
-            <div class="discount-section">
-              <div class="discount-amount">
-                Discount Amount: -₹${discountAmount.toFixed(2)}
-                ${!manualDiscount && (customerType === 'wholesale' || customerType === 'bulk') ? ' (Trade discount)' : ''}
-              </div>
+            <div class="customer-meta-row">
+              <span>Name: ${customerName}</span>
+              <span>PH : ${customerPhone || 'N/A'}</span>
             </div>
-            ` : ''}
+            <div class="divider-dashed"></div>
             
-            <div class="bill-items">
-              <div class="bill-items-header">
-                <span>Item</span>
-                <span>Rate</span>
-                <span>Qty/Unit</span>
-                <span>Amount</span>
+            <div class="items-table">
+              <div class="items-head-1">
+                <div>Sl</div>
+                <div>Barcode</div>
+                <div>Qty</div>
+                <div>Price</div>
+                <div>Disc</div>
+                <div>Amount</div>
               </div>
-              <div>
-                ${activeProducts.length === 0 ? `
-                  <div class="bill-item-empty">
-                    <span>--- No items in bill ---</span>
+              <div class="items-head-2">
+                <div></div>
+                <div>HSN</div>
+                <div>Department</div>
+                <div>GST%</div>
+              </div>
+              <div class="divider-dashed"></div>
+              
+              ${activeProducts.length === 0 ? `
+                <div style="text-align: center; padding: 6px; font-style: italic; font-size: 9px;">--- No items in bill ---</div>
+              ` : activeProducts.map((product, idx) => {
+                const qty = parseInt(product.quantity) || 1;
+                const price = parseFloat(product.mrp) || parseFloat(product.sellPrice) || 0;
+                const itemTotal = parseFloat(product.total) || (price * qty);
+                const itemGross = price * qty;
+                const itemDisc = Math.max(0, itemGross - itemTotal);
+                const barcodeStr = product.productCode || product.model || ('RV' + String(product.id || (idx + 1)).padStart(4, '0'));
+                const hsnStr = product.hsn || '61091000';
+                const deptStr = (product.category || product.type || 'TEXTILE').toUpperCase();
+                
+                return `
+                  <div class="items-row-1">
+                    <div>${idx + 1}</div>
+                    <div>${barcodeStr}</div>
+                    <div>${qty}</div>
+                    <div>${price.toFixed(0)}</div>
+                    <div>${itemDisc > 0 ? itemDisc.toFixed(2) : '0.00'}</div>
+                    <div>${itemTotal.toFixed(2)}</div>
                   </div>
-                ` : activeProducts.map(product => `
-                   <div class="bill-item">
-                    <span class="bill-item-name">
-                      ${product.name.length > 12 ? product.name.substring(0, 10) + '...' : product.name}
-                      ${product.productCode ? `<small class="bill-item-small">${product.productCode}</small>` : ''}
-                    </span>
-                    <span>₹${product.sellPrice}</span>
-                    <span>${product.quantity}${product.unit ? ' ' + product.unit : ''}</span>
-                    <span>₹${product.total.toFixed(2)}</span>
+                  <div class="items-row-2">
+                    <div></div>
+                    <div>${hsnStr}</div>
+                    <div>${deptStr.substring(0, 15)}</div>
+                    <div>5</div>
                   </div>
-                `).join('')}
+                `;
+              }).join('')}
+              
+              <div class="divider-dashed"></div>
+              <div class="totals-row">
+                <span>Total :</span>
+                <span>${totalQuantity.toFixed(2)}</span>
+                <span>${totalGrossSale.toFixed(0)}</span>
+                <span>${promoDiscount.toFixed(2)}</span>
+                <span>${subtotal.toFixed(2)}</span>
               </div>
+              <div class="divider-dashed"></div>
             </div>
             
-            <div class="bill-summary">
-              <div class="summary-row">
-                <span>Subtotal:</span>
-                <span>₹${subtotal.toFixed(2)}</span>
+            <div class="gst-section">
+              <div class="gst-title">GST Summary:</div>
+              <div class="divider-dotted"></div>
+              <div class="gst-grid gst-header">
+                <div>Description</div>
+                <div>Taxable</div>
+                <div>CGST</div>
+                <div>SGST</div>
+                <div>CESS</div>
               </div>
-              
-              ${discount > 0 ? `
-              <div class="summary-row">
-                <span>Discount (${discount}${discountType === 'percentage' ? '%' : '₹'}):</span>
-                <span>-₹${discountAmount.toFixed(2)}</span>
+              <div class="gst-grid">
+                <div>GST 18%</div>
+                <div>${taxableAmount.toFixed(2)}</div>
+                <div>${cgstAmount.toFixed(2)}</div>
+                <div>${sgstAmount.toFixed(2)}</div>
+                <div>0.00</div>
               </div>
-              ` : ''}
-              
-              <div class="summary-row">
-                <span>After Discount:</span>
-                <span>₹${(subtotal - discountAmount).toFixed(2)}</span>
+              <div class="divider-dotted"></div>
+              <div class="gst-grid" style="font-weight: bold;">
+                <div>Total:</div>
+                <div>${taxableAmount.toFixed(2)}</div>
+                <div>${cgstAmount.toFixed(2)}</div>
+                <div>${sgstAmount.toFixed(2)}</div>
+                <div>0.00</div>
               </div>
-              
-              ${tax > 0 ? `
-              <div class="summary-row">
-                <span>Tax (${tax}${taxType === 'percentage' ? '%' : '₹'}):</span>
-                <span>+₹${taxAmount.toFixed(2)}</span>
-              </div>
-              ` : ''}
-              
-              <div class="summary-row summary-row-total">
-                <span>Total:</span>
-                <span>₹${total.toFixed(2)}</span>
-              </div>
+              <div class="divider-dotted"></div>
             </div>
             
-            <div class="payment-section">
-              <div class="payment-row">
-                <span>Payment Method:</span>
-                <span>${paymentMethod.toUpperCase()}</span>
-              </div>
-              
-              <div class="payment-row">
-                <span>Paid Amount:</span>
-                <span>₹${paidAmount.toFixed(2)}</span>
-              </div>
-              
-              <div class="payment-row">
-                <span>Payment Status:</span>
-                <span style="color: ${paymentStatus === 'paid' ? '#28a745' : paymentStatus === 'partial' ? '#ffc107' : '#dc3545'}; font-weight: bold;">
-                  ${paymentStatus.toUpperCase()}
-                </span>
-              </div>
-              
-              ${due > 0 && paymentStatus !== 'pending' ? `
-              <div class="payment-row">
-                <span>Due Amount:</span>
-                <span>₹${due.toFixed(2)}</span>
-              </div>
-              ` : ''}
-              
-              ${paymentMethod === 'cash' && paidAmount >= total ? `
-              <div class="payment-row">
-                <span>Change:</span>
-                <span class="change-amount">₹${change.toFixed(2)}</span>
-              </div>
-              ` : ''}
+            <div class="calc-row">
+              <span>${paymentMethod.toUpperCase()}:</span>
+              <span>${(paidAmount > 0 ? paidAmount : total).toFixed(2)}</span>
+            </div>
+            <div class="calc-row">
+              <span>Return Amount:</span>
+              <span>${change.toFixed(2)}</span>
+            </div>
+            <div class="divider-solid"></div>
+            
+            <div class="calc-row">
+              <span>Total Sale:</span>
+              <span>${totalGrossSale.toFixed(2)}</span>
+            </div>
+            <div class="calc-row">
+              <span>Promo Discount:</span>
+              <span>${promoDiscount.toFixed(2)}</span>
+            </div>
+            <div class="calc-row">
+              <span>Bill Discount:</span>
+              <span>${discountAmount.toFixed(2)}</span>
+            </div>
+            <div class="calc-row">
+              <span>Total Savings:</span>
+              <span>${totalSavings.toFixed(2)}</span>
+            </div>
+            <div class="calc-row">
+              <span>Round Off:</span>
+              <span>${roundOff.toFixed(2)}</span>
+            </div>
+            <div class="calc-row calc-row-bold">
+              <span>Net Payable:</span>
+              <span>${total.toFixed(2)}</span>
+            </div>
+            <div class="amount-words">
+              Rs. ${wordsTotal} Only.
             </div>
             
-            <div class="bill-footer">
-              <p>Thank you for your business!</p>
-              <p>Quality Fabrics | No Exchange on Cut Pieces</p>
-              <p>** Computer generated bill **</p>
-              ${paymentMethod !== 'cash' && transactionId ? `
-              <p>${paymentMethod.toUpperCase()}: ${transactionId}</p>
-              ` : ''}
-              <div class="created-by">
-                Bill created by: ${createdBy}
-              </div>
+            <div class="divider-solid"></div>
+            <div class="receipt-footer">
+              <p class="policy">Returns will be accepted within 7 days only along with invoice copy, product label and saleable condition.</p>
+              <p class="thank-you">Thank You. Please visit again.</p>
+              <p class="store-sign">--${shopDetails.name || 'RV Fashion'}--</p>
             </div>
           </div>
         </body>
@@ -2139,203 +2139,24 @@ const Bill = () => {
     const savedData = await saveBillToDatabase();
 
     if (savedData) {
-      // Then print
-      // Get the bill content
-      const billContent = billPaperRef.current.outerHTML;
-
-      // Create a new window for printing
+      // Create a new window for printing with the exact generated bill HTML
       const printWindow = window.open('', '_blank');
 
       if (printWindow) {
-        printWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>Bill - ${billNumber}</title>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <style>
-                * {
-                  margin: 0;
-                  padding: 0;
-                  box-sizing: border-box;
-                  border: none;
-                  background: none;
-                  box-shadow: none;
-                  outline: none;
-                }
-                
-                body {
-                  margin: 0;
-                  padding: 0;
-                  width: 80mm;
-                  font-family: 'Courier New', monospace;
-                  font-size: 11px;
-                  line-height: 1.3;
-                  background: white;
-                }
-                
-                #billPaper {
-                  width: 280px;
-                  margin: 0 auto;
-                  padding: 12px;
-                  background: white;
-                  border: none;
-                }
-                
-                .bill-header {
-                  text-align: center;
-                  margin-bottom: 12px;
-                  padding-bottom: 8px;
-                  border-bottom: 1px dashed #000 !important;
-                }
-                
-                .bill-info {
-                  margin: 10px 0;
-                  padding: 6px 0;
-                  border-top: 1px dashed #000 !important;
-                  border-bottom: 1px dashed #000 !important;
-                }
-                
-                .customer-section {
-                  margin: 10px 0;
-                  padding: 6px;
-                  border: 1px solid #ddd !important;
-                }
-                
-                .customer-row {
-                  display: flex;
-                  justify-content: space-between;
-                  margin-bottom: 3px;
-                  font-size: 10px;
-                }
-                
-                .customer-type-badge {
-                  padding: 2px 6px;
-                  border-radius: 3px;
-                  font-size: 9px;
-                  font-weight: bold;
-                }
-                
-                .internal-badge {
-                  background: #cce5ff !important;
-                  color: #004085 !important;
-                }
-                
-                .external-badge {
-                  background: #fff3cd !important;
-                  color: #856404 !important;
-                }
-                
-                .vehicle-section {
-                  margin: 8px 0;
-                  padding: 6px;
-                  border: 1px solid #ddd !important;
-                }
-                
-                .vehicle-row {
-                  display: flex;
-                  justify-content: space-between;
-                  margin-bottom: 4px;
-                  font-size: 10px;
-                }
-                
-                .bill-items-header {
-                  display: grid;
-                  grid-template-columns: 2fr 1fr 1fr 1.5fr;
-                  font-weight: bold;
-                  padding: 4px 0;
-                  border-bottom: 1px solid #000 !important;
-                  font-size: 10px;
-                }
-                
-                .bill-item {
-                  display: grid;
-                  grid-template-columns: 2fr 1fr 1fr 1.5fr;
-                  padding: 3px 0;
-                  border-bottom: 1px dotted #000 !important;
-                  font-size: 9px;
-                }
-                
-                .bill-summary {
-                  margin: 10px 0;
-                  padding: 8px 0;
-                  border-top: 1px solid #000 !important;
-                }
-                
-                .summary-row {
-                  display: flex;
-                  justify-content: space-between;
-                  margin-bottom: 3px;
-                  font-size: 10px;
-                }
-                
-                .summary-row-total {
-                  font-weight: bold;
-                  font-size: 12px;
-                  border-top: 1px dashed #000 !important;
-                  padding-top: 6px;
-                  margin-top: 6px;
-                }
-                
-                .bill-footer {
-                  text-align: center;
-                  margin-top: 15px;
-                  padding-top: 10px;
-                  border-top: 1px dashed #000 !important;
-                  font-size: 8px;
-                }
-                
-                .created-by {
-                  margin-top: 8px;
-                  padding-top: 5px;
-                  border-top: 1px dotted #000 !important;
-                  font-size: 8px;
-                  text-align: center;
-                }
-                
-                input, select, button, textarea {
-                  display: none !important;
-                }
-                
-                .payment-section {
-                  display: none !important;
-                }
-                
-                .discount-section {
-                  display: none !important;
-                }
-                
-                * {
-                  background: white !important;
-                  color: black !important;
-                  -webkit-print-color-adjust: exact;
-                  print-color-adjust: exact;
-                }
-                
-                @page {
-                  size: 80mm auto;
-                  margin: 0;
-                }
-              </style>
-            </head>
-            <body>
-              ${billContent}
-              <script>
-                window.onload = function() {
-                  // Small delay to ensure styles are applied
-                  setTimeout(function() {
-                    window.print();
-                    // Close after print dialog is handled
-                    setTimeout(function() {
-                      window.close();
-                    }, 500);
-                  }, 300);
-                };
-              </script>
-            </body>
-          </html>
-        `);
+        const fullHTML = generateBillHTML().replace(
+          '</body>',
+          `<script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                setTimeout(function() {
+                  window.close();
+                }, 500);
+              }, 300);
+            };
+          </script></body>`
+        );
+        printWindow.document.write(fullHTML);
         printWindow.document.close();
       } else {
         setError('Pop-up blocked! Please allow pop-ups for this site to print.');
@@ -2373,37 +2194,29 @@ const Bill = () => {
     const due = calculateDue();
     const activeProducts = selectedProducts.filter(p => p.quantity > 0);
 
-    let message = `*RV Textiles*\n`;
-    message += `${shopDetails.address}\n`;
-    message += `${shopDetails.city}\n`;
+    let message = `*${shopDetails.name || 'RV Fashion'}*\n`;
+    message += `${shopDetails.subtitle || 'RV FASHION TIRUVALLUR'}\n`;
+    message += `${shopDetails.address || ''}\n`;
     if (shopDetails.phone) message += `Ph: ${shopDetails.phone}\n`;
-    message += `Bill No: ${billNumber}\n`;
+    message += `Sales Invoice No: ${billNumber}\n`;
     message += `Date: ${currentDate} ${currentTime}\n`;
     message += `Customer: ${customerName}\n`;
-    message += `Type: ${customerType.toUpperCase()}\n`;
-    if (orderReference) message += `Order Ref: ${orderReference}\n`;
-    if (deliveryNote) message += `Delivery Note: ${deliveryNote}\n`;
     message += `================\n`;
     message += `ITEMS:\n`;
 
-    activeProducts.forEach(p => {
-      message += `${p.name.substring(0, 15)} ${p.quantity}${p.unit ? ' ' + p.unit : ''} x ₹${p.sellPrice} = ₹${p.total.toFixed(2)}\n`;
+    activeProducts.forEach((p, idx) => {
+      const price = parseFloat(p.mrp) || parseFloat(p.sellPrice) || 0;
+      message += `${idx + 1}. ${p.name.substring(0, 15)} | Qty: ${p.quantity} | ₹${price.toFixed(0)} | Total: ₹${p.total.toFixed(2)}\n`;
     });
 
     message += `================\n`;
     message += `Subtotal: ₹${subtotal.toFixed(2)}\n`;
     if (discountAmount > 0) message += `Discount: -₹${discountAmount.toFixed(2)}\n`;
-    if (taxAmount > 0) message += `Tax: +₹${taxAmount.toFixed(2)}\n`;
-    message += `*TOTAL: ₹${total.toFixed(2)}*\n`;
+    message += `*NET PAYABLE: ₹${total.toFixed(2)}*\n`;
+    message += `Payment: ${paymentMethod.toUpperCase()} | Paid: ₹${paidAmount.toFixed(2)}\n`;
     message += `================\n`;
-    message += `Payment: ${paymentMethod.toUpperCase()}\n`;
-    message += `Paid: ₹${paidAmount.toFixed(2)}\n`;
-    message += `Status: ${paymentStatus.toUpperCase()}\n`;
-    if (due > 0) message += `Due: ₹${due.toFixed(2)}\n`;
-    message += `================\n`;
-    message += `Thank you for your business!\n`;
-    message += `Quality Fabrics | No Exchange on Cut Pieces\n`;
-    message += `Created by: ${createdBy}`;
+    message += `Returns accepted within 10 days only along with invoice copy.\n`;
+    message += `Thank you for shopping with ${shopDetails.name || 'RV Fashion'}!`;
 
     // Encode message for URL
     const encodedMessage = encodeURIComponent(message);
@@ -2492,6 +2305,17 @@ const Bill = () => {
   const total = calculateTotal();
   const due = calculateDue();
   const change = calculateChange();
+
+  const totalQuantity = activeProducts.reduce((sum, p) => sum + (parseInt(p.quantity) || 0), 0);
+  const totalGrossSale = activeProducts.reduce((sum, p) => sum + ((parseFloat(p.mrp) || parseFloat(p.sellPrice) || 0) * (parseInt(p.quantity) || 0)), 0);
+  const promoDiscount = Math.max(0, totalGrossSale - subtotal);
+  const totalSavings = promoDiscount + discountAmount;
+  const subtotalAfterDisc = Math.max(0, subtotal - discountAmount);
+  const taxableAmount = subtotalAfterDisc / 1.18;
+  const cgstAmount = taxableAmount * 0.09;
+  const sgstAmount = taxableAmount * 0.09;
+  const roundOff = 0.00;
+  const wordsTotal = numberToWords(total);
 
   // Dynamic styles that depend on state
   const dynamicStyles = {
@@ -2751,92 +2575,47 @@ const Bill = () => {
             id="billPaper"
             ref={billPaperRef}
           >
-            <div className="bill-header">
-              <img src="/avva-logo.jpeg" alt="RV Textiles Logo" style={{ maxWidth: '100px', marginBottom: '5px', display: 'block', marginLeft: 'auto', marginRight: 'auto' }} />
-              <h1 style={baseStyles.billHeaderH1}>{shopDetails.name}</h1>
-              <p style={baseStyles.billHeaderP}>{shopDetails.address}</p>
-              <p style={baseStyles.billHeaderP}>{shopDetails.city}</p>
-              {shopDetails.phone && <p style={baseStyles.billHeaderP}>Ph: {shopDetails.phone}</p>}
-              {shopDetails.gst && <p style={baseStyles.billHeaderP}>GST: {shopDetails.gst}</p>}
+            {/* Store Brand Header */}
+            <div style={baseStyles.receiptBrand}>
+              {(shopDetails.name || 'RV FASHION').toUpperCase()}
+            </div>
+            <div style={baseStyles.receiptSubtitle}>
+              {shopDetails.subtitle || `${(shopDetails.name || 'RV FASHION').toUpperCase()} TIRUVALLUR`}
+            </div>
+             <div style={baseStyles.receiptSubtitle}>
+              {shopDetails.subtitle2 || `${(shopDetails.name || 'RV ENTERPRISES').toUpperCase()}`}
+            </div>
+            <div style={baseStyles.receiptHeaderP}>
+              {shopDetails.address || '#1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003'}
+            </div>
+            <div style={baseStyles.receiptHeaderP}>
+              GSTIN : {shopDetails.gst || '33GAHPR3113J1ZP'}
+            </div>
+            <div style={baseStyles.receiptHeaderP}>
+              Ph:{shopDetails.phone || '8220912322 / 9843738588'}
             </div>
 
-            <div className="bill-info">
-              <div style={baseStyles.billInfoRow}>
-                <span>Bill No:</span>
-                <span style={baseStyles.billNumber}>{billNumber}</span>
-              </div>
-              <div style={baseStyles.billInfoRow}>
-                <span>Date:</span>
-                <span>{currentDate}</span>
-              </div>
-              <div style={baseStyles.billInfoRow}>
-                <span>Time:</span>
-                <span>{currentTime}</span>
-              </div>
+            <div style={baseStyles.receiptDividerSolid}></div>
+            <div style={baseStyles.receiptSalesInvoice}>Sales Invoice</div>
+            <div style={baseStyles.receiptDividerSolid}></div>
+
+            {/* Invoice Meta */}
+            <div style={baseStyles.billInfoRow}>
+              <span>Invoice No : {billNumber}</span>
             </div>
-
-            <div className="customer-section">
-              <div style={baseStyles.customerRow}>
-                <span style={baseStyles.customerLabel}>Customer Type:</span>
-                <span
-                  style={{
-                    ...baseStyles.customerTypeBadge,
-                    ...(customerType === 'wholesale' ? { background: '#d1fae5', color: '#065f46' } :
-                        customerType === 'bulk' ? { background: '#ede9fe', color: '#4c1d95' } :
-                        customerType === 'corporate' ? { background: '#dbeafe', color: '#1e40af' } :
-                        { background: '#fef3c7', color: '#92400e' })
-                  }}
-                >
-                  {customerType === 'wholesale' ? '🏭 WHOLESALE' :
-                   customerType === 'bulk' ? '📦 BULK' :
-                   customerType === 'corporate' ? '🏢 CORPORATE' :
-                   customerType === 'walk-in' ? '🚶 WALK-IN' :
-                   '🛍️ RETAIL'}
-                </span>
-              </div>
-
-              <div style={baseStyles.customerRow}>
-                <span style={baseStyles.customerLabel}>Name:</span>
-                <span style={baseStyles.customerValue}>{customerName}</span>
-              </div>
-
-              {customerPhone && (
-                <div style={baseStyles.customerRow}>
-                  <span style={{ ...baseStyles.customerLabel, color: '#007bff' }}>Phone Number:</span>
-                  <span style={baseStyles.customerValue}>{customerPhone}</span>
-                </div>
-              )}
-
-              {customerEmail && (
-                <div style={baseStyles.customerRow}>
-                  <span style={baseStyles.customerLabel}>Email:</span>
-                  <span style={baseStyles.customerValue}>{customerEmail}</span>
-                </div>
-              )}
-
-              {customerAddress && (
-                <div style={baseStyles.customerRow}>
-                  <span style={baseStyles.customerLabel}>Address:</span>
-                  <span style={baseStyles.customerValue}>{customerAddress}</span>
-                </div>
-              )}
-
-              {customerGST && (
-                <div style={baseStyles.customerRow}>
-                  <span style={baseStyles.customerLabel}>GST:</span>
-                  <span style={baseStyles.customerValue}>{customerGST}</span>
-                </div>
-              )}
+            <div style={baseStyles.billInfoRow}>
+              <span>Date: {currentDate} {currentTime}</span>
             </div>
+            <div style={baseStyles.receiptDividerDashed}></div>
 
-            {/* Order Reference Section */}
-            {(orderReference || deliveryNote) && (
-              <div style={{ margin: '5px 0', padding: '3px', background: '#f0f0f0', fontSize: '9px' }}>
-                {orderReference && <div><strong>Order Ref:</strong> {orderReference}</div>}
-                {deliveryNote && <div><strong>Delivery Note:</strong> {deliveryNote}</div>}
-              </div>
-            )}
+            {/* Customer Meta */}
+            <div style={{ ...baseStyles.customerRow, fontWeight: 'bold' }}>
+              <span>Name: {customerName}</span>
+              <span>PH :{customerPhone || 'N/A'}</span>
+            </div>
+            <div style={baseStyles.receiptDividerDashed}></div>
 
+            {/* Editable Controls on Screen (No-Print) */}
             <div style={baseStyles.customerSection} className="no-print">
               <select
                 style={baseStyles.customerTypeSelect}
@@ -2897,25 +2676,9 @@ const Bill = () => {
                 onChange={(e) => setCustomerGST(e.target.value)}
                 placeholder="GST Number (if applicable)"
               />
-
-              <input
-                type="text"
-                style={baseStyles.customerInput}
-                value={orderReference}
-                onChange={(e) => setOrderReference(e.target.value)}
-                placeholder="Order Reference / PO Number (optional)"
-              />
-
-              <input
-                type="text"
-                style={baseStyles.customerInput}
-                value={deliveryNote}
-                onChange={(e) => setDeliveryNote(e.target.value)}
-                placeholder="Delivery Note No. (optional)"
-              />
             </div>
 
-            {/* Discount Section - Enhanced */}
+            {/* Discount Section - No-Print */}
             <div style={baseStyles.discountSection} className="no-print">
               <div
                 style={baseStyles.discountHeader}
@@ -2958,11 +2721,6 @@ const Bill = () => {
 
               <div style={baseStyles.discountAmount}>
                 Discount Amount: -₹{discountAmount.toFixed(2)}
-                {!manualDiscount && (customerType === 'wholesale' || customerType === 'bulk') && (
-                  <span style={{ fontSize: '8px', marginLeft: '5px', color: '#666' }}>
-                    (Trade discount)
-                  </span>
-                )}
               </div>
 
               {manualDiscount && (
@@ -2982,83 +2740,200 @@ const Bill = () => {
               )}
             </div>
 
-            <div className="bill-items">
-              <div className="bill-items-header">
-                <span>Item</span>
-                <span>Rate</span>
-                <span>Qty/Unit</span>
-                <span>Amount</span>
+            {/* Items Table */}
+            <div style={{ width: '100%', margin: '4px 0' }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '18px 75px 24px 38px 45px 50px',
+                fontSize: '9px',
+                fontWeight: 'bold',
+                textAlign: 'right'
+              }}>
+                <div style={{ textAlign: 'left' }}>Sl</div>
+                <div style={{ textAlign: 'left' }}>Barcode</div>
+                <div>Qty</div>
+                <div>Price</div>
+                <div>Disc</div>
+                <div>Amount</div>
               </div>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '18px 65px 120px 45px',
+                fontSize: '8.5px',
+                fontWeight: 'bold',
+                color: '#222'
+              }}>
+                <div></div>
+                <div style={{ textAlign: 'left' }}>HSN</div>
+                <div style={{ textAlign: 'left' }}>Department</div>
+                <div style={{ textAlign: 'right' }}>GST%</div>
+              </div>
+
+              <div style={baseStyles.receiptDividerDashed}></div>
+
               <div>
                 {activeProducts.length === 0 ? (
-                  <div style={baseStyles.billItemEmpty}>
-                    <span>--- No items in bill ---</span>
+                  <div style={{ textAlign: 'center', color: '#999', padding: '6px', fontStyle: 'italic', fontSize: '9px' }}>
+                    --- No items in bill ---
                   </div>
                 ) : (
-                  activeProducts.map(product => (
-                    <div key={product.id} className="bill-item">
-                      <span style={baseStyles.billItemName}>
-                        {product.name.length > 12
-                          ? product.name.substring(0, 10) + '...'
-                          : product.name
-                        }
-                        {product.productCode && (
-                          <small style={baseStyles.billItemSmall}>{product.productCode}</small>
-                        )}
-                      </span>
-                      <span>₹{product.sellPrice}</span>
-                      <span>{product.quantity}{product.unit ? ` ${product.unit}` : ''}</span>
-                      <span>₹{product.total.toFixed(2)}</span>
-                    </div>
-                  ))
+                  activeProducts.map((product, idx) => {
+                    const qty = parseInt(product.quantity) || 1;
+                    const price = parseFloat(product.mrp) || parseFloat(product.sellPrice) || 0;
+                    const itemTotal = parseFloat(product.total) || (price * qty);
+                    const itemGross = price * qty;
+                    const itemDisc = Math.max(0, itemGross - itemTotal);
+                    const barcodeStr = product.productCode || product.model || ('RV' + String(product.id || (idx + 1)).padStart(4, '0'));
+                    const hsnStr = product.hsn || '61091000';
+                    const deptStr = (product.category || product.type || 'TEXTILE').toUpperCase();
+
+                    return (
+                      <div key={product.id || idx} style={{ marginBottom: '2px' }}>
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: '18px 75px 24px 38px 45px 50px',
+                          fontSize: '9px',
+                          textAlign: 'right'
+                        }}>
+                          <div style={{ textAlign: 'left' }}>{idx + 1}</div>
+                          <div style={{ textAlign: 'left' }}>{barcodeStr}</div>
+                          <div>{qty}</div>
+                          <div>{price.toFixed(0)}</div>
+                          <div>{itemDisc > 0 ? itemDisc.toFixed(2) : '0.00'}</div>
+                          <div>{itemTotal.toFixed(2)}</div>
+                        </div>
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: '18px 65px 120px 45px',
+                          fontSize: '8.5px',
+                          color: '#333'
+                        }}>
+                          <div></div>
+                          <div style={{ textAlign: 'left' }}>{hsnStr}</div>
+                          <div style={{ textAlign: 'left' }}>{deptStr.substring(0, 15)}</div>
+                          <div style={{ textAlign: 'right' }}>5</div>
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </div>
+
+              <div style={baseStyles.receiptDividerDashed}></div>
+
+              {/* Totals Row */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: '9.5px',
+                fontWeight: 'bold',
+                padding: '2px 0'
+              }}>
+                <span>Total :</span>
+                <span>{totalQuantity.toFixed(2)}</span>
+                <span>{totalGrossSale.toFixed(0)}</span>
+                <span>{promoDiscount.toFixed(2)}</span>
+                <span>{subtotal.toFixed(2)}</span>
+              </div>
+              <div style={baseStyles.receiptDividerDashed}></div>
             </div>
 
-            <div className="bill-summary">
-              <div className="summary-row">
-                <span>Subtotal:</span>
-                <span>₹{subtotal.toFixed(2)}</span>
+            {/* GST Summary */}
+            <div style={{ margin: '4px 0', fontSize: '9px' }}>
+              <div style={{ fontWeight: 'bold', fontSize: '9.5px', marginBottom: '2px' }}>GST Summary:</div>
+              <div style={baseStyles.receiptDividerDotted}></div>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '65px 50px 45px 45px 40px',
+                textAlign: 'right',
+                fontSize: '8.5px',
+                fontWeight: 'bold'
+              }}>
+                <div style={{ textAlign: 'left' }}>Description</div>
+                <div>Taxable</div>
+                <div>CGST</div>
+                <div>SGST</div>
+                <div>CESS</div>
               </div>
-
-              <div className="summary-row">
-                <span>
-                  Discount
-                  {discount > 0 && (
-                    <span style={{ fontSize: '8px', color: '#666' }}>
-                      {' '}({discount}{discountType === 'percentage' ? '%' : '₹'})
-                    </span>
-                  )}:
-                </span>
-                <span>-₹{discountAmount.toFixed(2)}</span>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '65px 50px 45px 45px 40px',
+                textAlign: 'right',
+                fontSize: '8.5px',
+                margin: '1px 0'
+              }}>
+                <div style={{ textAlign: 'left' }}>GST 18%</div>
+                <div>{taxableAmount.toFixed(2)}</div>
+                <div>{cgstAmount.toFixed(2)}</div>
+                <div>{sgstAmount.toFixed(2)}</div>
+                <div>0.00</div>
               </div>
-
-              <div className="summary-row">
-                <span>After Discount:</span>
-                <span>₹{(subtotal - discountAmount).toFixed(2)}</span>
+              <div style={baseStyles.receiptDividerDotted}></div>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '65px 50px 45px 45px 40px',
+                textAlign: 'right',
+                fontSize: '8.5px',
+                fontWeight: 'bold'
+              }}>
+                <div style={{ textAlign: 'left' }}>Total:</div>
+                <div>{taxableAmount.toFixed(2)}</div>
+                <div>{cgstAmount.toFixed(2)}</div>
+                <div>{sgstAmount.toFixed(2)}</div>
+                <div>0.00</div>
               </div>
+              <div style={baseStyles.receiptDividerDotted}></div>
+            </div>
 
-              {tax > 0 && (
-                <div className="summary-row">
-                  <span>
-                    Tax
-                    {tax > 0 && (
-                      <span style={{ fontSize: '8px', color: '#666' }}>
-                        {' '}({tax}{taxType === 'percentage' ? '%' : '₹'})
-                      </span>
-                    )}:
-                  </span>
-                  <span>+₹{taxAmount.toFixed(2)}</span>
-                </div>
-              )}
+            {/* Payment & Totals Breakdown */}
+            <div style={{ margin: '4px 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', margin: '1.5px 0' }}>
+                <span>{paymentMethod.toUpperCase()}:</span>
+                <span>{(paidAmount > 0 ? paidAmount : total).toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', margin: '1.5px 0' }}>
+                <span>Return Amount:</span>
+                <span>{change.toFixed(2)}</span>
+              </div>
+              <div style={baseStyles.receiptDividerSolid}></div>
 
-              <div className="summary-row summary-row-total">
-                <span>Total:</span>
-                <span>₹{total.toFixed(2)}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', margin: '1.5px 0' }}>
+                <span>Total Sale:</span>
+                <span>{totalGrossSale.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', margin: '1.5px 0' }}>
+                <span>Promo Discount:</span>
+                <span>{promoDiscount.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', margin: '1.5px 0' }}>
+                <span>Bill Discount:</span>
+                <span>{discountAmount.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', margin: '1.5px 0' }}>
+                <span>Total Savings:</span>
+                <span>{totalSavings.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', margin: '1.5px 0' }}>
+                <span>Round Off:</span>
+                <span>{roundOff.toFixed(2)}</span>
+              </div>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                margin: '2px 0'
+              }}>
+                <span>Net Payable:</span>
+                <span>{total.toFixed(2)}</span>
+              </div>
+              <div style={{ fontSize: '9px', fontWeight: 'bold', margin: '4px 0 2px 0' }}>
+                Rs. {wordsTotal} Only.
               </div>
             </div>
 
-            <div className="payment-section">
+            {/* Payment Interactive Section (No-Print) */}
+            <div style={baseStyles.paymentSection} className="no-print">
               <div style={baseStyles.paymentRow}>
                 <span>Payment Method:</span>
                 <select
@@ -3213,18 +3088,16 @@ const Bill = () => {
               </button>
             </div>
 
-            <div className="bill-footer">
-              <p style={baseStyles.billFooterP}>Thank you for your business!</p>
-              <p style={baseStyles.billFooterP}>Quality Fabrics | No Exchange on Cut Pieces</p>
-              <p style={baseStyles.billFooterP}>** Computer generated bill **</p>
-              {paymentMethod !== 'cash' && transactionId && (
-                <p style={baseStyles.billFooterP}>
-                  {paymentMethod.toUpperCase()}: {transactionId}
-                </p>
-              )}
-              <div style={{ marginTop: '5px', paddingTop: '3px', borderTop: '1px dotted #ccc', fontSize: '8px', color: '#666' }}>
-                Bill created by: {createdBy}
-              </div>
+            {/* Receipt Footer */}
+            <div style={baseStyles.receiptDividerSolid}></div>
+            <div style={{ textAlign: 'center', fontSize: '8px', marginTop: '6px', lineHeight: '1.3' }}>
+              <p style={{ marginBottom: '4px' }}>
+                Returns will be accepted within 7 days only along with invoice copy, product label and saleable condition.
+              </p>
+              <p style={{ fontSize: '9.5px', fontWeight: 'bold', margin: '3px 0 1px 0' }}>
+                Thank You. Please visit again.
+              </p>
+              <p style={{ fontSize: '9px' }}>--{shopDetails.name || 'RV Fashion'}--</p>
             </div>
           </div>
 

@@ -77,11 +77,11 @@ const ServiceBill = () => {
 
   
   const shopDetails = {
-    name: 'RV Textiles',
-    phone: '+91 93423 01582',
-    address: 'No.71, M.T.H.road (Opp padi post office), Padi',
-    city: 'Chennai - 600 050',
-    gst: '33ABCDE1234F1Z5'
+    name: 'RV Fashion',
+    phone: '8220912322 / 9843738588',
+    address: '#1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003',
+    city: 'Tiruvallur',
+    gst: '33GAHPR3113J1ZP'
   };
 
   // Refs

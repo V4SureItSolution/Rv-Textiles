@@ -78,12 +78,12 @@ const VisitBillPage = () => {
   
   // Company/Shop Details from Backend
   const [companyDetails, setCompanyDetails] = useState({
-    name: "RV Textiles",
-    address: "No.71, M.T.H.road (Opp padi post office)",
-    city: "Padi, Chennai - 600 050",
-    phone: "98657 09626",
+    name: "RV Fashion",
+    address: "#1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003",
+    city: "Tiruvallur",
+    phone: "8220912322 / 9843738588",
     email: "",
-    gst: "",
+    gst: "33GAHPR3113J1ZP",
     logo: null,
     logoUrl: null
   });
@@ -137,17 +137,11 @@ const VisitBillPage = () => {
     corporate: { icon: <Briefcase size={14} />, color: '#2563eb', label: 'Corporate' }
   };
 
-  // Fetch companies on mount
+  // Fetch companies and bills on mount
   useEffect(() => {
     fetchCompanies();
+    fetchBills();
   }, []);
-
-  // Load bills on component mount
-  useEffect(() => {
-    if (selectedCompanyId) {
-      fetchBills();
-    }
-  }, [selectedCompanyId]);
 
   // Apply filters whenever filter criteria change
   useEffect(() => {
@@ -173,38 +167,32 @@ const VisitBillPage = () => {
     setLoadingCompany(true);
     try {
       const response = await api.get('/companies/list');
-      console.log('Companies response:', response.data);
-      
       if (response.data && response.data.length > 0) {
         setCompanies(response.data);
-        // Auto-select first company
         const firstCompany = response.data[0];
         setSelectedCompanyId(firstCompany.id);
-        await fetchCompanyDetails(firstCompany.id);
+        fetchCompanyDetails(firstCompany.id);
       } else {
-        // Use default company details
         setCompanyDetails({
-          name: "RV Textiles",
-          address: "No.71, M.T.H.road (Opp padi post office)",
-          city: "Padi, Chennai - 600 050",
-          phone: "98657 09626",
+          name: "RV Fashion",
+          address: "#1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003",
+          city: "Tiruvallur",
+          phone: "8220912322 / 9843738588",
           email: "",
-          gst: "",
+          gst: "33GAHPR3113J1ZP",
           logo: null,
           logoUrl: null
         });
       }
     } catch (err) {
       console.error('Error fetching companies:', err);
-      showMessage("error", "❌ Failed to fetch company details");
-      // Use default company details
       setCompanyDetails({
-        name: "RV Textiles",
-        address: "No.71, M.T.H.road (Opp padi post office)",
-        city: "Padi, Chennai - 600 050",
-        phone: "93423 01582",
+        name: "RV Fashion",
+        address: "#1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003",
+        city: "Tiruvallur",
+        phone: "8220912322 / 9843738588",
         email: "",
-        gst: "",
+        gst: "33GAHPR3113J1ZP",
         logo: null,
         logoUrl: null
       });
@@ -217,22 +205,19 @@ const VisitBillPage = () => {
   const fetchCompanyDetails = async (companyId) => {
     try {
       const response = await api.get(`/companies/${companyId}`);
-      console.log('Company details:', response.data);
-      
       const company = response.data;
       setCompanyDetails({
-        name: company.name || "RV Textiles",
-        address: company.address || "No.71, M.T.H.road (Opp padi post office)",
-        city: company.city || "Padi, Chennai - 600 050",
-        phone: company.phone || "93423 01582",
+        name: company.name || "RV Fashion",
+        address: company.address || "#1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003",
+        city: company.city || "Tiruvallur",
+        phone: company.phone || "8220912322 / 9843738588",
         email: company.email || "",
-        gst: company.gst_number || company.gst || "",
+        gst: company.gst_number || company.gst || "33GAHPR3113J1ZP",
         logo: company.logo || null,
         logoUrl: company.logo_url || null
       });
     } catch (err) {
       console.error('Error fetching company details:', err);
-      // Keep existing company details if fetch fails
     }
   };
 
@@ -240,62 +225,31 @@ const VisitBillPage = () => {
   const handleCompanySelect = async (company) => {
     setSelectedCompanyId(company.id);
     setShowCompanySelector(false);
-    await fetchCompanyDetails(company.id);
+    fetchCompanyDetails(company.id);
     showMessage("success", `✅ Switched to ${company.name}`);
-    fetchBills(); // Refresh bills for the selected company
+    fetchBills(company.id);
   };
 
-  const fetchBills = async () => {
+  const fetchBills = async (overrideCompanyId = null) => {
     setLoading(true);
     setError('');
     
     try {
-      // Build query string to request all bills and filter by selected company if set
-      let queryParams = `?per_page=500`;
-      if (selectedCompanyId) {
-        queryParams += `&company_id=${selectedCompanyId}`;
+      const targetCompanyId = overrideCompanyId !== null ? overrideCompanyId : selectedCompanyId;
+      const params = { per_page: 500 };
+      if (targetCompanyId) {
+        params.company_id = targetCompanyId;
       }
       
-      // Try different possible endpoints
-      const endpoints = [
-        `${API_BASE_URL}/billing/bills${queryParams}`,
-        `${API_BASE_URL}/bills${queryParams}`,
-        `${API_BASE_URL}/visit-bills${queryParams}`,
-        `${API_BASE_URL}/billing/visit-bills${queryParams}`
-      ];
+      const response = await api.get('/billing/bills', { params });
       
-      let response = null;
-      let success = false;
-      
-      for (const endpoint of endpoints) {
-        try {
-          console.log('Trying endpoint:', endpoint);
-          response = await api.get(endpoint);
-          if (response.data) {
-            success = true;
-            console.log('Success with endpoint:', endpoint);
-            break;
-          }
-        } catch (err) {
-          console.log(`Endpoint ${endpoint} failed:`, err.message);
-        }
-      }
-      
-      if (!success || !response) {
-        throw new Error('Could not fetch bills from any endpoint');
-      }
-      
-      console.log('API Response:', response.data);
-      
-      // Extract bills data from response
       let billsData = [];
-      
       if (Array.isArray(response.data)) {
         billsData = response.data;
-      } else if (response.data.data && Array.isArray(response.data.data)) {
-        billsData = response.data.data;
       } else if (response.data.bills && Array.isArray(response.data.bills)) {
         billsData = response.data.bills;
+      } else if (response.data.data && Array.isArray(response.data.data)) {
+        billsData = response.data.data;
       } else if (response.data.results && Array.isArray(response.data.results)) {
         billsData = response.data.results;
       } else if (typeof response.data === 'object') {
@@ -409,54 +363,17 @@ const VisitBillPage = () => {
       // First check if we already have the bill in state
       const existingBill = bills.find(b => b.id === billId);
       if (existingBill && existingBill.items && existingBill.items.length > 0) {
-        console.log('Using existing bill data');
         setSelectedBill(existingBill);
         setShowBillModal(true);
         setLoading(false);
         return;
       }
       
-      // Try different endpoints for single bill
-      const endpoints = [
-        `${API_BASE_URL}/billing/bills/${billId}`,
-        `${API_BASE_URL}/bills/${billId}`,
-        `${API_BASE_URL}/visit-bills/${billId}`,
-        `${API_BASE_URL}/billing/visit-bills/${billId}`
-      ];
-      
-      let response = null;
-      let success = false;
-      
-      for (const endpoint of endpoints) {
-        try {
-          console.log('Trying details endpoint:', endpoint);
-          response = await api.get(endpoint);
-          if (response.data) {
-            success = true;
-            console.log('Success with details endpoint:', endpoint);
-            break;
-          }
-        } catch (err) {
-          console.log(`Endpoint ${endpoint} failed:`, err.message);
-        }
-      }
-      
-      if (!success || !response) {
-        // If API fails, use the existing bill data
-        const billFromList = bills.find(b => b.id === billId);
-        if (billFromList) {
-          console.log('Using bill from list as fallback');
-          setSelectedBill(billFromList);
-          setShowBillModal(true);
-          setLoading(false);
-          return;
-        }
+      const response = await api.get(`/billing/bills/${billId}`);
+      if (!response.data) {
         throw new Error('Could not fetch bill details');
       }
       
-      console.log('Bill Details Response:', response.data);
-      
-      // Process the bill data
       const billData = response.data;
       
       // Handle discount - it could be amount or percentage
