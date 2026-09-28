@@ -9,9 +9,12 @@ product_bp = Blueprint("product_bp", __name__)
 CORS(product_bp)
 
 TEXTILE_CATEGORIES = [
-    "Cotton", "Silk", "Polyester", "Linen", "Denim",
-    "Wool", "Rayon", "Nylon", "Chiffon", "Georgette",
-    "Velvet", "Satin", "Knit", "Fleece", "Other"
+    # Men's
+    "F-SHIRT", "H-SHIRT", "T..F SHIRT", "T..H SHIRT",
+    "F PANT", "JEANS", "TRACKS", "SHORTS", "INNERS",
+    # Ladies'
+    "S -TOP", "2 PCS SET TOPS", "3-PCS SET TOP",
+    "Cotton", "Silk", "Polyester", "Linen", "Denim", "Other",
 ]
 
 TEXTILE_UNITS = ["Meters", "Yards", "Kilograms", "Pieces", "Rolls", "Bundles", "Boxes"]
@@ -21,25 +24,31 @@ TEXTILE_UNITS = ["Meters", "Yards", "Kilograms", "Pieces", "Rolls", "Bundles", "
 def validate_product_data(data):
     errors = []
 
-    if not data.get('name'):
-        errors.append('Product name is required')
+    # Name is optional now if category/style/barcode is present
+    name = (data.get('name') or '').strip()
+    category = (data.get('category') or data.get('type') or '').strip()
+    barcode = (data.get('productCode') or data.get('barcode') or data.get('model') or '').strip()
+    style = (data.get('style') or '').strip()
+
+    if not name and not category and not barcode and not style:
+        errors.append('Product identifier (name, category, style, or barcode) is required')
 
     try:
-        buy_price = float(data.get('buyPrice', 0))
+        buy_price = float(data.get('buyPrice', 0) or 0)
         if buy_price < 0:
             errors.append('Purchase price cannot be negative')
     except (TypeError, ValueError):
         errors.append('Invalid purchase price')
 
     try:
-        sell_price = float(data.get('sellPrice', 0))
+        sell_price = float(data.get('sellPrice', 0) or 0)
         if sell_price < 0:
             errors.append('Selling price cannot be negative')
     except (TypeError, ValueError):
         errors.append('Invalid selling price')
 
     try:
-        quantity = int(data.get('quantity', 0))
+        quantity = int(data.get('quantity', 0) if data.get('quantity') is not None else (data.get('qty', 0) or 0))
         if quantity < 0:
             errors.append('Quantity cannot be negative')
     except (TypeError, ValueError):
@@ -69,12 +78,12 @@ def create_product():
         if errors:
             return jsonify({"errors": errors}), 400
 
-        # Check product_code uniqueness if provided (supports 'productCode' or 'model')
-        product_code = (data.get('productCode') or data.get('model') or '').strip() or None
+        # Check product_code / barcode uniqueness if provided
+        product_code = (data.get('productCode') or data.get('barcode') or data.get('model') or '').strip() or None
         if product_code:
             existing = Product.query.filter_by(product_code=product_code).first()
             if existing:
-                return jsonify({"errors": [f"Product code '{product_code}' already exists"]}), 400
+                return jsonify({"errors": [f"Barcode / Product code '{product_code}' already exists"]}), 400
 
         supplier_id = data.get('supplierId') or None
         if supplier_id:
@@ -84,17 +93,43 @@ def create_product():
 
         category = (data.get("category") or data.get("type") or "").strip() or None
         unit = (data.get("unit") or "").strip() or None
-        mrp = float(data.get("mrp")) if data.get("mrp") is not None and str(data.get("mrp")).strip() != "" else None
+        site_name = (data.get("siteName") or data.get("site_name") or "").strip() or None
+        size = (data.get("size") or "").strip() or None
+        colour = (data.get("colour") or data.get("color") or "").strip() or None
+        fh_shirts = (data.get("fhShirts") or data.get("fh_shirts") or "").strip() or None
+        style = (data.get("style") or "").strip() or None
+
+        mrp_raw = data.get("mrp")
+        mrp = float(mrp_raw) if mrp_raw is not None and str(mrp_raw).strip() != "" else None
+
+        sell_price_raw = data.get("sellPrice")
+        sell_price = float(sell_price_raw) if sell_price_raw is not None and str(sell_price_raw).strip() != "" else (mrp or 0.0)
+
+        buy_price_raw = data.get("buyPrice")
+        buy_price = float(buy_price_raw) if buy_price_raw is not None and str(buy_price_raw).strip() != "" else 0.0
+
+        quantity_raw = data.get("quantity") if data.get("quantity") is not None else data.get("qty")
+        quantity = int(quantity_raw or 0)
+
+        name = (data.get("name") or "").strip()
+        if not name:
+            parts = [p for p in [category, style, fh_shirts, size, colour] if p]
+            name = " ".join(parts) if parts else (site_name or product_code or "Textile Item")
 
         product = Product(
-            name=data.get("name", "").strip(),
+            name=name,
+            site_name=site_name,
             product_code=product_code,
             category=category,
             unit=unit,
-            buy_price=float(data.get("buyPrice", 0)),
-            sell_price=float(data.get("sellPrice", 0)),
+            size=size,
+            colour=colour,
+            fh_shirts=fh_shirts,
+            style=style,
+            buy_price=buy_price,
+            sell_price=sell_price,
             mrp=mrp,
-            quantity=int(data.get("quantity", 0)),
+            quantity=quantity,
             supplier_id=supplier_id,
         )
 
@@ -116,12 +151,17 @@ def get_products():
         from sqlalchemy import func
 
         page = request.args.get('page', 1, type=int)
-        per_page = min(request.args.get('per_page', 10, type=int), 200)
+        per_page = min(request.args.get('per_page', 10, type=int), 2000)
 
         # --- Filter params ---
         category        = request.args.get('category')
         supplier_id     = request.args.get('supplier_id', type=int)
         unit            = request.args.get('unit')
+        site_name       = request.args.get('site_name') or request.args.get('siteName')
+        size            = request.args.get('size')
+        colour          = request.args.get('colour') or request.args.get('color')
+        fh_shirts       = request.args.get('fh_shirts') or request.args.get('fhShirts')
+        style           = request.args.get('style')
         min_price       = request.args.get('min_price', type=float)
         max_price       = request.args.get('max_price', type=float)
         search          = request.args.get('search', '').strip()
@@ -140,6 +180,16 @@ def get_products():
                 q = q.filter(Product.supplier_id == supplier_id)
             if unit:
                 q = q.filter(Product.unit == unit)
+            if site_name:
+                q = q.filter(Product.site_name.ilike(f'%{site_name}%'))
+            if size:
+                q = q.filter(Product.size.ilike(f'%{size}%'))
+            if colour:
+                q = q.filter(Product.colour.ilike(f'%{colour}%'))
+            if fh_shirts:
+                q = q.filter(Product.fh_shirts.ilike(f'%{fh_shirts}%'))
+            if style:
+                q = q.filter(Product.style.ilike(f'%{style}%'))
             if min_price is not None:
                 q = q.filter(Product.sell_price >= min_price)
             if max_price is not None:
@@ -152,6 +202,11 @@ def get_products():
                         Product.name.ilike(f'%{search}%'),
                         Product.product_code.ilike(f'%{search}%'),
                         Product.category.ilike(f'%{search}%'),
+                        Product.site_name.ilike(f'%{search}%'),
+                        Product.size.ilike(f'%{search}%'),
+                        Product.colour.ilike(f'%{search}%'),
+                        Product.fh_shirts.ilike(f'%{search}%'),
+                        Product.style.ilike(f'%{search}%'),
                     )
                 )
             return q
@@ -161,13 +216,25 @@ def get_products():
 
         # Sorting
         sort_column_map = {
+            'id':             Product.id,
             'name':           Product.name,
+            'site_name':      Product.site_name,
+            'siteName':       Product.site_name,
             'product_code':   Product.product_code,
+            'barcode':        Product.product_code,
             'category':       Product.category,
             'unit':           Product.unit,
+            'size':           Product.size,
+            'colour':         Product.colour,
+            'color':          Product.colour,
+            'fh_shirts':      Product.fh_shirts,
+            'fhShirts':       Product.fh_shirts,
+            'style':          Product.style,
+            'mrp':            Product.mrp,
             'buy_price':      Product.buy_price,
             'sell_price':     Product.sell_price,
             'quantity':       Product.quantity,
+            'qty':            Product.quantity,
             'amount':         Product.amount,
             'profit_percent': Product.profit_percent,
             'created_at':     Product.created_at,
@@ -204,7 +271,6 @@ def get_products():
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
-
 # ------------------ GET SINGLE PRODUCT ------------------
 @product_bp.route("/products/<int:id>", methods=["GET"])
 def get_product(id):
@@ -222,26 +288,31 @@ def update_product(id):
         product = db.get_or_404(Product, id)
         data = request.get_json()
 
-        if data.get('buyPrice') is not None or data.get('sellPrice') is not None or data.get('quantity') is not None:
+        if data.get('buyPrice') is not None or data.get('sellPrice') is not None or data.get('quantity') is not None or data.get('qty') is not None:
             errors = validate_product_data({
                 'name': data.get('name', product.name),
+                'category': data.get('category', product.category),
+                'style': data.get('style', product.style),
+                'productCode': data.get('productCode', product.product_code),
                 'buyPrice': data.get('buyPrice', product.buy_price),
                 'sellPrice': data.get('sellPrice', product.sell_price),
-                'quantity': data.get('quantity', product.quantity),
+                'quantity': data.get('quantity', product.quantity) if data.get('quantity') is not None else data.get('qty', product.quantity),
             })
             if errors:
                 return jsonify({"errors": errors}), 400
 
         if data.get('name') is not None:
-            product.name = data['name'].strip()
+            name_val = data['name'].strip()
+            if name_val:
+                product.name = name_val
 
-        code_val = data.get('productCode') if 'productCode' in data else data.get('model')
+        code_val = data.get('productCode') if 'productCode' in data else (data.get('barcode') if 'barcode' in data else data.get('model'))
         if code_val is not None:
-            new_code = code_val.strip() or None
+            new_code = str(code_val).strip() or None
             if new_code and new_code != product.product_code:
                 existing = Product.query.filter_by(product_code=new_code).first()
                 if existing:
-                    return jsonify({"errors": [f"Product code '{new_code}' already exists"]}), 400
+                    return jsonify({"errors": [f"Barcode / Product code '{new_code}' already exists"]}), 400
             product.product_code = new_code
 
         category_val = data.get('category') if 'category' in data else data.get('type')
@@ -249,14 +320,30 @@ def update_product(id):
             product.category = category_val.strip() or None
         if 'unit' in data:
             product.unit = data['unit'].strip() or None
+        if 'siteName' in data or 'site_name' in data:
+            product.site_name = (data.get('siteName') or data.get('site_name') or '').strip() or None
+        if 'size' in data:
+            product.size = (data.get('size') or '').strip() or None
+        if 'colour' in data or 'color' in data:
+            product.colour = (data.get('colour') or data.get('color') or '').strip() or None
+        if 'fhShirts' in data or 'fh_shirts' in data:
+            product.fh_shirts = (data.get('fhShirts') or data.get('fh_shirts') or '').strip() or None
+        if 'style' in data:
+            product.style = (data.get('style') or '').strip() or None
+
         if data.get('buyPrice') is not None:
-            product.buy_price = float(data['buyPrice'])
+            product.buy_price = float(data['buyPrice'] or 0)
         if data.get('sellPrice') is not None:
-            product.sell_price = float(data['sellPrice'])
+            product.sell_price = float(data['sellPrice'] or 0)
         if 'mrp' in data:
             product.mrp = float(data['mrp']) if data['mrp'] is not None and str(data['mrp']).strip() != '' else None
+            if product.sell_price is None or product.sell_price == 0:
+                product.sell_price = product.mrp or 0.0
+
         if data.get('quantity') is not None:
             product.quantity = int(data['quantity'])
+        elif data.get('qty') is not None:
+            product.quantity = int(data['qty'])
 
         if 'supplierId' in data:
             supplier_id = data['supplierId'] or None
@@ -265,6 +352,12 @@ def update_product(id):
                 if not db.session.get(Supplier, supplier_id):
                     supplier_id = None
             product.supplier_id = supplier_id
+
+        # If name is still default or empty, construct meaningful name
+        if not product.name or product.name == "Textile Item":
+            parts = [p for p in [product.category, product.style, product.fh_shirts, product.size, product.colour] if p]
+            if parts:
+                product.name = " ".join(parts)
 
         product.calculate_values()
         db.session.commit()
@@ -322,11 +415,23 @@ def bulk_create_products():
                     errors.append({'index': idx, 'errors': validation_errors, 'data': product_data})
                     continue
 
-                product_code = product_data.get('productCode', '').strip() or None
+                product_code = (product_data.get('productCode') or product_data.get('barcode') or '').strip() or None
                 if product_code:
                     existing = Product.query.filter_by(product_code=product_code).first()
                     if existing:
-                        existing.quantity += int(product_data.get('quantity', 0))
+                        existing.quantity += int(product_data.get('quantity') or product_data.get('qty') or 0)
+                        if product_data.get('siteName') or product_data.get('site_name'):
+                            existing.site_name = product_data.get('siteName') or product_data.get('site_name')
+                        if product_data.get('size'):
+                            existing.size = product_data.get('size')
+                        if product_data.get('colour') or product_data.get('color'):
+                            existing.colour = product_data.get('colour') or product_data.get('color')
+                        if product_data.get('fhShirts') or product_data.get('fh_shirts'):
+                            existing.fh_shirts = product_data.get('fhShirts') or product_data.get('fh_shirts')
+                        if product_data.get('style'):
+                            existing.style = product_data.get('style')
+                        if product_data.get('mrp') is not None:
+                            existing.mrp = float(product_data.get('mrp'))
                         existing.calculate_values()
                         created_products.append(existing)
                         continue
@@ -335,14 +440,39 @@ def bulk_create_products():
                 if supplier_id:
                     supplier_id = int(supplier_id)
 
+                category = (product_data.get("category") or "").strip() or None
+                unit = (product_data.get("unit") or "").strip() or None
+                site_name = (product_data.get("siteName") or product_data.get("site_name") or "").strip() or None
+                size = (product_data.get("size") or "").strip() or None
+                colour = (product_data.get("colour") or product_data.get("color") or "").strip() or None
+                fh_shirts = (product_data.get("fhShirts") or product_data.get("fh_shirts") or "").strip() or None
+                style = (product_data.get("style") or "").strip() or None
+
+                mrp_raw = product_data.get("mrp")
+                mrp = float(mrp_raw) if mrp_raw is not None and str(mrp_raw).strip() != "" else None
+                sell_price = float(product_data.get("sellPrice") or mrp or 0)
+                buy_price = float(product_data.get("buyPrice") or 0)
+                quantity = int(product_data.get("quantity") or product_data.get("qty") or 0)
+
+                name = (product_data.get("name") or "").strip()
+                if not name:
+                    parts = [p for p in [category, style, fh_shirts, size, colour] if p]
+                    name = " ".join(parts) if parts else (site_name or product_code or "Textile Item")
+
                 product = Product(
-                    name=product_data.get("name", "").strip(),
+                    name=name,
+                    site_name=site_name,
                     product_code=product_code,
-                    category=product_data.get("category", "").strip() or None,
-                    unit=product_data.get("unit", "").strip() or None,
-                    buy_price=float(product_data.get("buyPrice", 0)),
-                    sell_price=float(product_data.get("sellPrice", 0)),
-                    quantity=int(product_data.get("quantity", 0)),
+                    category=category,
+                    unit=unit,
+                    size=size,
+                    colour=colour,
+                    fh_shirts=fh_shirts,
+                    style=style,
+                    buy_price=buy_price,
+                    sell_price=sell_price,
+                    mrp=mrp,
+                    quantity=quantity,
                     supplier_id=supplier_id,
                 )
 

@@ -112,7 +112,7 @@ export const printProductSticker = (
       product.barcode ||
       product.code ||
       product.sku ||
-      (product.id ? `RVT-${String(product.id).padStart(5, "0")}` : "000000")
+      (product.id ? `RVFT-${String(product.id).padStart(5, "0")}` : "000000")
     ).trim();
   };
 

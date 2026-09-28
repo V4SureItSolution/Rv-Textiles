@@ -8,14 +8,19 @@ class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     name = db.Column(db.String(100), nullable=False)
+    site_name = db.Column(db.String(100), nullable=True)
     product_code = db.Column(db.String(50), unique=True, nullable=True)
     category = db.Column(db.String(100))
     unit = db.Column(db.String(50))
+    size = db.Column(db.String(50), nullable=True)
+    colour = db.Column(db.String(50), nullable=True)
+    fh_shirts = db.Column(db.String(50), nullable=True)
+    style = db.Column(db.String(100), nullable=True)
 
-    buy_price = db.Column(db.Float, nullable=False)
-    sell_price = db.Column(db.Float, nullable=False)
+    buy_price = db.Column(db.Float, nullable=False, default=0.0)
+    sell_price = db.Column(db.Float, nullable=False, default=0.0)
     mrp = db.Column(db.Float, nullable=True)
-    quantity = db.Column(db.Integer, nullable=False)
+    quantity = db.Column(db.Integer, nullable=False, default=0)
 
     supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=True)
 
@@ -28,6 +33,11 @@ class Product(db.Model):
     supplier = db.relationship('Supplier', backref='products', lazy=True)
 
     def calculate_values(self):
+        if self.sell_price is None and self.mrp is not None:
+            self.sell_price = self.mrp
+        elif self.sell_price is None:
+            self.sell_price = 0.0
+
         if self.buy_price and self.buy_price > 0:
             self.profit_percent = round(
                 ((self.sell_price - self.buy_price) / self.buy_price) * 100, 2
@@ -35,7 +45,7 @@ class Product(db.Model):
         else:
             self.profit_percent = 0
 
-        self.amount = round(self.sell_price * self.quantity, 2)
+        self.amount = round((self.sell_price or 0.0) * (self.quantity or 0), 2)
 
     def to_dict(self):
         supplier_name = None
@@ -45,13 +55,23 @@ class Product(db.Model):
         return {
             "id": self.id,
             "name": self.name,
-            "productCode": self.product_code,
-            "category": self.category,
-            "unit": self.unit,
-            "buyPrice": self.buy_price,
-            "sellPrice": self.sell_price,
-            "mrp": self.mrp if self.mrp is not None else (round(self.sell_price * 1.25, 2) if self.sell_price else 0),
-            "quantity": self.quantity,
+            "siteName": self.site_name or "",
+            "site_name": self.site_name or "",
+            "productCode": self.product_code or "",
+            "barcode": self.product_code or "",
+            "category": self.category or "",
+            "unit": self.unit or "",
+            "size": self.size or "",
+            "colour": self.colour or "",
+            "color": self.colour or "",
+            "fhShirts": self.fh_shirts or "",
+            "fh_shirts": self.fh_shirts or "",
+            "style": self.style or "",
+            "buyPrice": self.buy_price or 0.0,
+            "sellPrice": self.sell_price or 0.0,
+            "mrp": self.mrp if self.mrp is not None else (self.sell_price or 0.0),
+            "quantity": self.quantity or 0,
+            "qty": self.quantity or 0,
             "supplierId": self.supplier_id,
             "supplierName": supplier_name,
             "profitPercent": self.profit_percent,

@@ -15,7 +15,7 @@ billing_bp = Blueprint("billing_bp", __name__)
 def generate_unique_bill_number():
     """Generate a unique random bill number for RV Textiles"""
     while True:
-        # Format: RVT-YYMMDD-XXXXXXXX
+        # Format: RVFT-YYMMDD-XXXXXXXX
         now = datetime.now()
         year = str(now.year)[-2:]
         month = str(now.month).zfill(2)
@@ -27,7 +27,7 @@ def generate_unique_bill_number():
             k=8
         ))
         
-        bill_number = f"RVT-{year}{month}{day}-{random_chars}"
+        bill_number = f"RVFT-{year}{month}{day}-{random_chars}"
         
         # Check if this number already exists
         existing = Bill.query.filter_by(bill_number=bill_number).first()

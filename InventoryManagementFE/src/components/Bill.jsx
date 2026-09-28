@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { formatDate, formatTime, formatDateTime, parseDateTime } from '../utils/dateUtils';
+import rvLogo from '../assets/rv-logo.png';
 
 // Helper function to convert number to words (Indian numbering system)
 const numberToWords = (num) => {
@@ -99,8 +100,7 @@ const Bill = () => {
   const defaultShopDetails = {
     name: 'RV Fashion',
     subtitle: 'RV FASHION TIRUVALLUR',
-    subtitle2: 'RV ENTERPRISES',
-    address: '#1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003',
+    address: 'RV ENTERPRISES, #1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003',
     city: 'Tiruvallur',
     phone: '8220912322 / 9843738588',
     gst: '33GAHPR3113J1ZP',
@@ -483,6 +483,17 @@ const Bill = () => {
       fontSize: '11px',
       lineHeight: '1.25',
       color: '#000',
+    },
+    receiptLogoContainer: {
+      textAlign: 'center',
+      marginBottom: '4px',
+    },
+    receiptLogo: {
+      height: '55px',
+      maxWidth: '120px',
+      objectFit: 'contain',
+      display: 'inline-block',
+      margin: '0 auto',
     },
     receiptBrand: {
       textAlign: 'center',
@@ -984,7 +995,7 @@ const Bill = () => {
       random += randomChars.charAt(Math.floor(Math.random() * randomChars.length));
     }
 
-    setBillNumber(`RVT-${year}${month}${day}-${random}`);
+    setBillNumber(`RVFT-${year}${month}${day}-${random}`);
   };
 
   // Update date and time
@@ -1029,7 +1040,9 @@ const Bill = () => {
           if (draft.transactionId !== undefined) setTransactionId(draft.transactionId);
           if (draft.bankName !== undefined) setBankName(draft.bankName);
           if (draft.chequeNumber !== undefined) setChequeNumber(draft.chequeNumber);
-          if (draft.billNumber) setBillNumber(draft.billNumber);
+          if (draft.billNumber) {
+            setBillNumber(draft.billNumber.startsWith('RVFT-') ? draft.billNumber.replace(/^RVT-/, 'RVFT-') : draft.billNumber);
+          }
 
           setSuccess('Restored active draft bill!');
           setTimeout(() => setSuccess(''), 2500);
@@ -1742,6 +1755,18 @@ const Bill = () => {
               background: white;
             }
             
+            .store-logo-container {
+              text-align: center;
+              margin-bottom: 4px;
+            }
+            
+            .store-logo {
+              height: 55px;
+              max-width: 120px;
+              object-fit: contain;
+              display: inline-block;
+            }
+            
             .store-brand {
               text-align: center;
               font-size: 26px;
@@ -1923,10 +1948,12 @@ const Bill = () => {
         </head>
         <body>
           <div id="billPaper">
+            <div class="store-logo-container">
+              <img src="${rvLogo || '/rv-logo.png'}" alt="RV Fashion" class="store-logo" />
+            </div>
             <div class="store-brand">${(shopDetails.name || 'RV FASHION').toUpperCase()}</div>
             <div class="store-subtitle">${shopDetails.subtitle || `${(shopDetails.name || 'RV FASHION').toUpperCase()} TIRUVALLUR`}</div>
-            <div class="store-subtitle2">${shopDetails.subtitle2 || 'RV ENTERPRISES'}</div>
-            <div class="store-address">${shopDetails.address || '#1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003'}</div>
+            <div class="store-address">${shopDetails.address || 'RV ENTERPRISES, #1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003'}</div>
             <div class="store-gstin">GSTIN : ${shopDetails.gst || '33GAHPR3113J1ZP'}</div>
             <div class="store-phone">Ph:${shopDetails.phone || '8220912322 / 9843738588'}</div>
             
@@ -2575,6 +2602,11 @@ const Bill = () => {
             id="billPaper"
             ref={billPaperRef}
           >
+            {/* Store Logo */}
+            <div style={baseStyles.receiptLogoContainer}>
+              <img src={rvLogo} alt="RV Fashion" style={baseStyles.receiptLogo} />
+            </div>
+
             {/* Store Brand Header */}
             <div style={baseStyles.receiptBrand}>
               {(shopDetails.name || 'RV FASHION').toUpperCase()}
@@ -2582,11 +2614,8 @@ const Bill = () => {
             <div style={baseStyles.receiptSubtitle}>
               {shopDetails.subtitle || `${(shopDetails.name || 'RV FASHION').toUpperCase()} TIRUVALLUR`}
             </div>
-             <div style={baseStyles.receiptSubtitle}>
-              {shopDetails.subtitle2 || `${(shopDetails.name || 'RV ENTERPRISES').toUpperCase()}`}
-            </div>
             <div style={baseStyles.receiptHeaderP}>
-              {shopDetails.address || '#1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003'}
+              {shopDetails.address || 'RV ENTERPRISES, #1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003'}
             </div>
             <div style={baseStyles.receiptHeaderP}>
               GSTIN : {shopDetails.gst || '33GAHPR3113J1ZP'}

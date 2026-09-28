@@ -19,13 +19,13 @@ def generate_invoice_number():
             func.date(Invoice.created_at) == today.date()
         ).count()
         
-        # Format: INV-YYYYMMDD-XXX
+        # Format: RVFT-YYYYMMDD-XXX
         seq = str(count + 1).zfill(3)
-        return f"INV-{date_str}-{seq}"
+        return f"RVFT-{date_str}-{seq}"
     except Exception as e:
         print(f"Error generating invoice number: {str(e)}")
         # Fallback: use timestamp
-        return f"INV-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        return f"RVFT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
 @invoice_bp.route('/invoice', methods=['GET'])
 def get_invoices():
