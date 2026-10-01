@@ -39,7 +39,8 @@ class Bill(db.Model):
     # Bill Summary
     subtotal = db.Column(db.Float, default=0)
     discount = db.Column(db.Float, default=0)
-    discount_type = db.Column(db.String(20), default='amount')  # 'amount' or 'percentage'
+    discount_type = db.Column(db.String(20), default='percentage')  # 'amount' or 'percentage'
+    reduced_amount = db.Column(db.Float, default=0)
     tax = db.Column(db.Float, default=0)
     tax_type = db.Column(db.String(20), default='percentage')  # 'amount' or 'percentage'
     total = db.Column(db.Float, default=0)
@@ -78,13 +79,15 @@ class Bill(db.Model):
         else:
             discount_amount = self.discount
         
+        reduced = float(self.reduced_amount or 0)
+        
         # Apply tax
         if self.tax_type == 'percentage':
-            tax_amount = ((self.subtotal - discount_amount) * self.tax) / 100
+            tax_amount = max(0, ((self.subtotal - discount_amount - reduced) * self.tax) / 100)
         else:
             tax_amount = self.tax
         
-        self.total = self.subtotal - discount_amount + tax_amount
+        self.total = max(0, self.subtotal - discount_amount - reduced + tax_amount)
         self.change_amount = max(0, self.paid_amount - self.total)
         
         # Update payment status
@@ -130,6 +133,7 @@ class Bill(db.Model):
                 'subtotal': round(self.subtotal, 2),
                 'discount': round(self.discount, 2),
                 'discountType': self.discount_type,
+                'reducedAmount': round(self.reduced_amount or 0, 2),
                 'tax': round(self.tax, 2),
                 'taxType': self.tax_type,
                 'total': round(self.total, 2)

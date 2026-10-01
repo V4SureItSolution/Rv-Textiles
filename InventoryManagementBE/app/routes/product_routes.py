@@ -247,8 +247,8 @@ def get_products():
             db.session.query(
                 func.count(Product.id).label('total_products'),
                 func.coalesce(func.sum(Product.quantity), 0).label('total_qty'),
-                func.coalesce(func.sum(Product.amount), 0).label('total_value'),
-                func.coalesce(func.avg(Product.sell_price), 0).label('avg_sell_price'),
+                func.coalesce(func.sum(func.coalesce(Product.mrp, Product.sell_price, 0) * Product.quantity), 0).label('total_value'),
+                func.coalesce(func.avg(func.coalesce(Product.mrp, Product.sell_price, 0)), 0).label('avg_mrp'),
             )
         ).first()
 
@@ -264,7 +264,8 @@ def get_products():
                 'total_products': int(agg.total_products or 0),
                 'total_qty':      int(agg.total_qty or 0),
                 'total_value':    round(float(agg.total_value or 0), 2),
-                'avg_sell_price': round(float(agg.avg_sell_price or 0), 2),
+                'avg_mrp':        round(float(agg.avg_mrp or 0), 2),
+                'avg_sell_price': round(float(agg.avg_mrp or 0), 2),
             },
         }), 200
 

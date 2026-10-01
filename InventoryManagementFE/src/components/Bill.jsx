@@ -58,10 +58,11 @@ const Bill = () => {
   // User information (bill created by)
   const [createdBy, setCreatedBy] = useState('');
 
-  // Discount information
-  const [discount, setDiscount] = useState(0);
-  const [discountType, setDiscountType] = useState('percentage'); // 'percentage' or 'fixed'
+  // Discount and reduced amount information
+  const [discount, setDiscount] = useState(0); // 0, 10, or 15 percentage
+  const [discountType, setDiscountType] = useState('percentage'); // 'percentage'
   const [manualDiscount, setManualDiscount] = useState(false); // Track if discount is manually set
+  const [reducedAmount, setReducedAmount] = useState(0); // Extra reduced amount (not printed on thermal receipt)
 
   // Tax information
   const [tax, setTax] = useState(0);
@@ -96,13 +97,27 @@ const Bill = () => {
   const [fetchingCustomer, setFetchingCustomer] = useState(false);
   const [isDraftInitialized, setIsDraftInitialized] = useState(false);
 
+  // Manual entry modal state
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [manualItem, setManualItem] = useState({
+    name: '',
+    productCode: '',
+    category: 'F-SHIRT',
+    style: 'RV-01',
+    size: '40',
+    colour: 'White',
+    mrp: '',
+    price: '',
+    quantity: 1,
+  });
+
   // Shop details (defaulting to RV Fashion template)
   const defaultShopDetails = {
     name: 'RV Fashion',
     subtitle: 'RV FASHION TIRUVALLUR',
     address: 'RV ENTERPRISES, #1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003',
     city: 'Tiruvallur',
-    phone: '8220912322 / 9843738588',
+    phone: '9843738588',
     gst: '33GAHPR3113J1ZP',
   };
 
@@ -960,11 +975,12 @@ const Bill = () => {
       const response = await api.get(`/companies/${companyId}`);
       if (response.data) {
         const company = response.data;
+        const cleanedPhone = (company.phone || '').replace(/8220912322\s*\/\s*/g, '').replace(/8220912322/g, '') || defaultShopDetails.phone;
         setShopDetails({
           name: company.name || defaultShopDetails.name,
           address: company.address || defaultShopDetails.address,
           city: company.city || defaultShopDetails.city,
-          phone: company.phone || '',
+          phone: cleanedPhone || '9843738588',
           gst: company.gst_number || '',
         });
       }
@@ -1028,6 +1044,7 @@ const Bill = () => {
           if (draft.discount !== undefined) setDiscount(draft.discount);
           if (draft.discountType !== undefined) setDiscountType(draft.discountType);
           if (draft.manualDiscount !== undefined) setManualDiscount(draft.manualDiscount);
+          if (draft.reducedAmount !== undefined) setReducedAmount(draft.reducedAmount);
           if (draft.tax !== undefined) setTax(draft.tax);
           if (draft.taxType !== undefined) setTaxType(draft.taxType);
           if (draft.paidAmount !== undefined) setPaidAmount(draft.paidAmount);
@@ -1077,6 +1094,7 @@ const Bill = () => {
         discount,
         discountType,
         manualDiscount,
+        reducedAmount,
         tax,
         taxType,
         paidAmount,
@@ -1098,7 +1116,7 @@ const Bill = () => {
   }, [
     isDraftInitialized, selectedProducts, customerName, customerPhone, customerEmail,
     customerGST, customerAddress, customerType, customerDiscount, orderReference,
-    deliveryNote, discount, discountType, manualDiscount, tax, taxType,
+    deliveryNote, discount, discountType, manualDiscount, reducedAmount, tax, taxType,
     paidAmount, paymentMethod, paymentStatus, cashReceived, cardNumber,
     cardHolderName, upiId, transactionId, bankName, chequeNumber, billNumber
   ]);
@@ -1126,7 +1144,7 @@ const Bill = () => {
     } else if (paidAmount >= total) {
       setPaymentStatus('paid');
     }
-  }, [paidAmount, selectedProducts, discount, tax, discountType, taxType]);
+  }, [paidAmount, selectedProducts, discount, reducedAmount, tax, discountType, taxType]);
 
   // Set discount based on textile customer type (only if not manually set)
   useEffect(() => {
@@ -1403,18 +1421,22 @@ const Bill = () => {
     }
   };
 
-  // Add product to bill
+  // Add product to bill (using MRP as the base selling price)
   const addProductToBill = (product) => {
     const existingProduct = selectedProducts.find(p => p.id === product.id);
+    const effectivePrice = (product.mrp !== undefined && product.mrp !== null && product.mrp !== '' && !isNaN(product.mrp))
+      ? parseFloat(product.mrp)
+      : parseFloat(product.sellPrice || 0);
 
     if (existingProduct) {
-      if (existingProduct.quantity < product.quantity) {
+      if (existingProduct.quantity < product.quantity || existingProduct.isManual) {
+        const currentPrice = existingProduct.sellPrice !== undefined ? existingProduct.sellPrice : effectivePrice;
         const updatedProducts = selectedProducts.map(p =>
           p.id === product.id
             ? {
               ...p,
               quantity: p.quantity + 1,
-              total: (p.quantity + 1) * p.sellPrice
+              total: (p.quantity + 1) * currentPrice
             }
             : p
         );
@@ -1426,19 +1448,21 @@ const Bill = () => {
         setTimeout(() => setError(''), 3000);
       }
     } else {
-      if (product.quantity > 0) {
+      if (product.quantity > 0 || product.isManual) {
         setSelectedProducts([
           ...selectedProducts,
           {
             id: product.id,
             name: product.name,
-            productCode: product.productCode || '',
+            productCode: product.productCode || product.barcode || '',
             category: product.category || '',
             unit: product.unit || '',
-            sellPrice: product.sellPrice,
+            sellPrice: effectivePrice,
+            mrp: effectivePrice,
             quantity: 1,
-            total: product.sellPrice,
-            maxQuantity: product.quantity
+            total: effectivePrice,
+            maxQuantity: product.isManual ? 9999 : product.quantity,
+            isManual: Boolean(product.isManual)
           }
         ]);
         setSuccess(`${product.name} added to bill`);
@@ -1451,6 +1475,72 @@ const Bill = () => {
 
     setSearchQuery('');
     setSearchResults([]);
+  };
+
+  // Update unit price / MRP directly for an item in the bill
+  const updateProductPrice = (productId, newPrice) => {
+    const parsedPrice = parseFloat(newPrice);
+    const validPrice = isNaN(parsedPrice) || parsedPrice < 0 ? 0 : parsedPrice;
+
+    const updatedProducts = selectedProducts.map(p =>
+      p.id === productId
+        ? {
+            ...p,
+            sellPrice: validPrice,
+            mrp: validPrice,
+            total: (p.quantity || 0) * validPrice
+          }
+        : p
+    );
+    setSelectedProducts(updatedProducts);
+  };
+
+  // Handle adding manual / custom product to bill
+  const handleAddManualItem = (e) => {
+    if (e) e.preventDefault();
+    const priceVal = parseFloat(manualItem.price || manualItem.mrp);
+    if (isNaN(priceVal) || priceVal < 0) {
+      setError('Please enter a valid MRP / price for manual item');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    const qty = parseInt(manualItem.quantity) || 1;
+    const cat = manualItem.category || '';
+    const name = manualItem.name?.trim() || [cat, manualItem.style, manualItem.size, manualItem.colour].filter(Boolean).join(' ') || 'Manual Product';
+    const code = manualItem.productCode?.trim() || `MAN-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const newItem = {
+      id: `manual-${Date.now()}`,
+      name: name,
+      productCode: code,
+      category: cat,
+      size: manualItem.size || '',
+      colour: manualItem.colour || '',
+      unit: 'Pieces',
+      sellPrice: priceVal,
+      mrp: priceVal,
+      quantity: qty,
+      total: priceVal * qty,
+      maxQuantity: 9999,
+      isManual: true,
+    };
+
+    setSelectedProducts(prev => [...prev, newItem]);
+    setShowManualModal(false);
+    setManualItem({
+      name: '',
+      productCode: '',
+      category: 'F-SHIRT',
+      style: 'RV-01',
+      size: '40',
+      colour: 'White',
+      mrp: '',
+      price: '',
+      quantity: 1,
+    });
+    setSuccess(`Added custom item: ${name} (₹${priceVal.toFixed(2)})`);
+    setTimeout(() => setSuccess(''), 2500);
   };
 
   // Update quantity - Triggers floating toast notification at bottom-right without shifting page layout
@@ -1498,37 +1588,36 @@ const Bill = () => {
       .reduce((sum, p) => sum + p.total, 0);
   };
 
-  // Calculate discount amount
+  // Calculate discount amount (only 10% or 15%)
   const calculateDiscountAmount = () => {
     const subtotal = calculateSubtotal();
     if (subtotal === 0) return 0;
-
-    if (discountType === 'percentage') {
-      return (subtotal * discount) / 100;
-    }
-    return Math.min(discount, subtotal); // Fixed amount cannot exceed subtotal
+    const discPercent = (discount === 10 || discount === 15) ? discount : 0;
+    return (subtotal * discPercent) / 100;
   };
 
-  // Calculate tax amount (applied after discount)
+  // Calculate tax amount (applied after discount and reduced amount)
   const calculateTaxAmount = () => {
     const subtotal = calculateSubtotal();
     const discountAmount = calculateDiscountAmount();
-    const afterDiscount = subtotal - discountAmount;
+    const reduced = parseFloat(reducedAmount) || 0;
+    const afterDiscount = Math.max(0, subtotal - discountAmount - reduced);
 
     if (afterDiscount <= 0) return 0;
 
     if (taxType === 'percentage') {
       return (afterDiscount * tax) / 100;
     }
-    return Math.min(tax, afterDiscount); // Fixed tax cannot exceed after discount amount
+    return Math.min(tax, afterDiscount);
   };
 
-  // Calculate total (subtotal - discount + tax)
+  // Calculate total (subtotal - discount - reducedAmount + tax)
   const calculateTotal = () => {
     const subtotal = calculateSubtotal();
     const discountAmount = calculateDiscountAmount();
+    const reduced = parseFloat(reducedAmount) || 0;
     const taxAmount = calculateTaxAmount();
-    return Math.max(0, subtotal - discountAmount + taxAmount);
+    return Math.max(0, subtotal - discountAmount - reduced + taxAmount);
   };
 
   // Calculate change
@@ -1543,60 +1632,13 @@ const Bill = () => {
     return Math.max(0, total - paidAmount);
   };
 
-  // Handle discount change
-  const handleDiscountChange = (value) => {
-    setManualDiscount(true); // Mark as manually set
-    const numValue = parseFloat(value) || 0;
-    const subtotal = calculateSubtotal();
-
-    // Validate based on discount type
-    if (discountType === 'percentage') {
-      if (numValue > 100) {
-        setError('Percentage discount cannot exceed 100%');
-        setDiscount(100);
-      } else if (numValue < 0) {
-        setDiscount(0);
-      } else {
-        setDiscount(numValue);
-      }
-    } else {
-      if (numValue > subtotal) {
-        setError('Fixed discount cannot exceed subtotal');
-        setDiscount(subtotal);
-      } else if (numValue < 0) {
-        setDiscount(0);
-      } else {
-        setDiscount(numValue);
-      }
-    }
-
-    // Clear error after 3 seconds
-    setTimeout(() => setError(''), 3000);
-  };
-
-  // Handle discount type change
-  const handleDiscountTypeChange = (type) => {
-    setManualDiscount(true); // Mark as manually set
-    const subtotal = calculateSubtotal();
-    setDiscountType(type);
-
-    // Convert discount value when type changes
-    if (type === 'percentage') {
-      // If switching to percentage, convert fixed amount to percentage
-      if (discountType === 'fixed' && subtotal > 0) {
-        const percentage = (discount / subtotal) * 100;
-        setDiscount(Math.min(100, Math.round(percentage * 100) / 100));
-      } else if (discount > 100) {
-        setDiscount(100);
-      }
-    } else {
-      // If switching to fixed, convert percentage to fixed amount
-      if (discountType === 'percentage' && subtotal > 0) {
-        const fixed = (subtotal * discount) / 100;
-        setDiscount(Math.min(subtotal, Math.round(fixed * 100) / 100));
-      } else if (discount > subtotal) {
-        setDiscount(subtotal);
-      }
+  // Handle discount percentage selection (strictly 0%, 10%, or 15%)
+  const handleDiscountPercentageChange = (value) => {
+    setManualDiscount(true);
+    const num = Number(value);
+    if (num === 10 || num === 15 || num === 0) {
+      setDiscount(num);
+      setDiscountType('percentage');
     }
   };
 
@@ -1655,8 +1697,9 @@ const Bill = () => {
         orderReference: orderReference,
         deliveryNote: deliveryNote,
         companyId: selectedCompany?.id,
-        discount: discount,
-        discountType: discountType === 'percentage' ? 'percentage' : 'amount',
+        discount: (discount === 10 || discount === 15) ? discount : 0,
+        discountType: 'percentage',
+        reducedAmount: parseFloat(reducedAmount) || 0,
         tax: tax,
         taxType: taxType === 'percentage' ? 'percentage' : 'amount',
         paidAmount: paidAmount,
@@ -1665,6 +1708,12 @@ const Bill = () => {
         createdByName: createdBy, // Using the state variable which now has the correct name
         items: activeProducts.map(p => ({
           productId: p.id,
+          name: p.name,
+          productCode: p.productCode || p.barcode || '',
+          category: p.category || '',
+          unit: p.unit || 'Pieces',
+          sellPrice: parseFloat(p.sellPrice !== undefined ? p.sellPrice : (p.mrp || 0)),
+          mrp: parseFloat(p.mrp !== undefined ? p.mrp : (p.sellPrice || 0)),
           quantity: p.quantity
         }))
       };
@@ -1715,8 +1764,9 @@ const Bill = () => {
     const totalQuantity = activeProducts.reduce((sum, p) => sum + (parseInt(p.quantity) || 0), 0);
     const totalGrossSale = activeProducts.reduce((sum, p) => sum + ((parseFloat(p.mrp) || parseFloat(p.sellPrice) || 0) * (parseInt(p.quantity) || 0)), 0);
     const promoDiscount = Math.max(0, totalGrossSale - subtotal);
-    const totalSavings = promoDiscount + discountAmount;
-    const subtotalAfterDisc = Math.max(0, subtotal - discountAmount);
+    const reduced = parseFloat(reducedAmount) || 0;
+    const totalSavings = promoDiscount + discountAmount + reduced;
+    const subtotalAfterDisc = Math.max(0, subtotal - discountAmount - reduced);
     const taxableAmount = subtotalAfterDisc / 1.18;
     const cgstAmount = taxableAmount * 0.09;
     const sgstAmount = taxableAmount * 0.09;
@@ -1955,7 +2005,7 @@ const Bill = () => {
             <div class="store-subtitle">${shopDetails.subtitle || `${(shopDetails.name || 'RV FASHION').toUpperCase()} TIRUVALLUR`}</div>
             <div class="store-address">${shopDetails.address || 'RV ENTERPRISES, #1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003'}</div>
             <div class="store-gstin">GSTIN : ${shopDetails.gst || '33GAHPR3113J1ZP'}</div>
-            <div class="store-phone">Ph:${shopDetails.phone || '8220912322 / 9843738588'}</div>
+            <div class="store-phone">Ph:${shopDetails.phone || '9843738588'}</div>
             
             <div class="divider-solid"></div>
             <div class="invoice-title">Sales Invoice</div>
@@ -2080,9 +2130,15 @@ const Bill = () => {
               <span>${promoDiscount.toFixed(2)}</span>
             </div>
             <div class="calc-row">
-              <span>Bill Discount:</span>
+              <span>Bill Discount${discount > 0 ? ` (${discount}%)` : ''}:</span>
               <span>${discountAmount.toFixed(2)}</span>
             </div>
+            ${reduced > 0 ? `
+            <div class="calc-row">
+              <span>Reduced Amount:</span>
+              <span>-${reduced.toFixed(2)}</span>
+            </div>
+            ` : ''}
             <div class="calc-row">
               <span>Total Savings:</span>
               <span>${totalSavings.toFixed(2)}</span>
@@ -2135,6 +2191,41 @@ const Bill = () => {
     setTimeout(() => setSuccess(''), 3000);
   };
 
+  // Reset bill form after successful print or save for next bill
+  const resetBillFormAfterSave = () => {
+    localStorage.removeItem('active_draft_bill');
+    setSelectedProducts([]);
+    setCustomerName('Walk-in Customer');
+    setCustomerPhone('');
+    setCustomerEmail('');
+    setCustomerGST('');
+    setCustomerAddress('');
+    setCustomerType('retail');
+    setCustomerDiscount(0);
+    setOrderReference('');
+    setDeliveryNote('');
+    setDiscount(0);
+    setDiscountType('percentage');
+    setManualDiscount(false);
+    setReducedAmount(0);
+    setTax(0);
+    setTaxType('percentage');
+    setPaidAmount(0);
+    setCashReceived(0);
+    setPaymentMethod('cash');
+    setPaymentStatus('pending');
+    setCardNumber('');
+    setCardHolderName('');
+    setUpiId('');
+    setTransactionId('');
+    setBankName('');
+    setChequeNumber('');
+    setSearchQuery('');
+    setSearchResults([]);
+    setBarcode('');
+    generateBillNumber();
+  };
+
   // Handle payment completion - Save to DB then download/print
   const handlePaymentComplete = async () => {
     const subtotal = calculateSubtotal();
@@ -2150,6 +2241,10 @@ const Bill = () => {
     if (savedData) {
       // Then download the bill
       downloadBill();
+      // Reset items and sync for next bill
+      resetBillFormAfterSave();
+      setSuccess('Payment completed & stock updated! Ready for new bill.');
+      setTimeout(() => setSuccess(''), 3000);
     }
   };
 
@@ -2162,6 +2257,9 @@ const Bill = () => {
       return;
     }
 
+    // Capture the print HTML while selectedProducts are loaded
+    const billHTML = generateBillHTML();
+
     // Save to database first
     const savedData = await saveBillToDatabase();
 
@@ -2170,7 +2268,7 @@ const Bill = () => {
       const printWindow = window.open('', '_blank');
 
       if (printWindow) {
-        const fullHTML = generateBillHTML().replace(
+        const fullHTML = billHTML.replace(
           '</body>',
           `<script>
             window.onload = function() {
@@ -2189,6 +2287,11 @@ const Bill = () => {
         setError('Pop-up blocked! Please allow pop-ups for this site to print.');
         setTimeout(() => setError(''), 3000);
       }
+
+      // Reset items and sync stock for the next bill
+      resetBillFormAfterSave();
+      setSuccess('Bill printed & stock synced! Ready for new bill.');
+      setTimeout(() => setSuccess(''), 3000);
     }
   };
 
@@ -2238,7 +2341,8 @@ const Bill = () => {
 
     message += `================\n`;
     message += `Subtotal: ₹${subtotal.toFixed(2)}\n`;
-    if (discountAmount > 0) message += `Discount: -₹${discountAmount.toFixed(2)}\n`;
+    if (discountAmount > 0) message += `Discount (${discount}%): -₹${discountAmount.toFixed(2)}\n`;
+    if (reducedAmount > 0) message += `Reduced Amount: -₹${(parseFloat(reducedAmount) || 0).toFixed(2)}\n`;
     message += `*NET PAYABLE: ₹${total.toFixed(2)}*\n`;
     message += `Payment: ${paymentMethod.toUpperCase()} | Paid: ₹${paidAmount.toFixed(2)}\n`;
     message += `================\n`;
@@ -2272,6 +2376,7 @@ const Bill = () => {
       setDiscount(0);
       setDiscountType('percentage');
       setManualDiscount(false);
+      setReducedAmount(0);
       setTax(0);
       setTaxType('percentage');
       setPaidAmount(0);
@@ -2336,8 +2441,8 @@ const Bill = () => {
   const totalQuantity = activeProducts.reduce((sum, p) => sum + (parseInt(p.quantity) || 0), 0);
   const totalGrossSale = activeProducts.reduce((sum, p) => sum + ((parseFloat(p.mrp) || parseFloat(p.sellPrice) || 0) * (parseInt(p.quantity) || 0)), 0);
   const promoDiscount = Math.max(0, totalGrossSale - subtotal);
-  const totalSavings = promoDiscount + discountAmount;
-  const subtotalAfterDisc = Math.max(0, subtotal - discountAmount);
+  const totalSavings = promoDiscount + discountAmount + (parseFloat(reducedAmount) || 0);
+  const subtotalAfterDisc = Math.max(0, subtotal - discountAmount - (parseFloat(reducedAmount) || 0));
   const taxableAmount = subtotalAfterDisc / 1.18;
   const cgstAmount = taxableAmount * 0.09;
   const sgstAmount = taxableAmount * 0.09;
@@ -2512,8 +2617,340 @@ const Bill = () => {
             >
               {loading ? 'Adding...' : 'Add'}
             </button>
+            <button
+              type="button"
+              style={{
+                padding: '12px 18px',
+                background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '700',
+                fontSize: '13px',
+                boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)',
+                whiteSpace: 'nowrap',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+              onClick={() => setShowManualModal(true)}
+              title="Add custom item manually"
+            >
+              ✏️ Manual Entry
+            </button>
           </div>
         </div>
+
+        {/* ── Discount & Reduced Amount Section (Below Create New Bill Search Section) ── */}
+        <div style={{
+          background: 'rgba(15, 23, 42, 0.75)',
+          padding: '16px 20px',
+          borderRadius: '12px',
+          marginBottom: '20px',
+          border: '1px solid rgba(99, 102, 241, 0.25)',
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px', letterSpacing: '0.5px' }}>
+              💰 Discount & Reduced Amount
+            </span>
+            <div style={{ display: 'flex', gap: '8px', fontSize: '11px', fontWeight: 'bold' }}>
+              {discount > 0 && (
+                <span style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#4ade80', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(34, 197, 94, 0.4)' }}>
+                  {discount}% Off (-₹{discountAmount.toFixed(2)})
+                </span>
+              )}
+              {reducedAmount > 0 && (
+                <span style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.4)' }}>
+                  Reduced: -₹{(parseFloat(reducedAmount) || 0).toFixed(2)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Discount Percentage Options: 0%, 10%, 15% */}
+          <div style={{ marginBottom: '14px' }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+              🏷️ Discount Percentage (10% / 15%):
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '8px' }}>
+              <button
+                type="button"
+                style={{
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  borderRadius: '8px',
+                  border: discount === 0 ? '1px solid #3b82f6' : '1px solid #334155',
+                  background: discount === 0 ? 'linear-gradient(135deg, #3b82f6, #1d4ed8)' : '#1e293b',
+                  color: discount === 0 ? '#ffffff' : '#94a3b8',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: discount === 0 ? '0 4px 12px rgba(59, 130, 246, 0.35)' : 'none',
+                }}
+                onClick={() => handleDiscountPercentageChange(0)}
+              >
+                0% (None)
+              </button>
+              <button
+                type="button"
+                style={{
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  borderRadius: '8px',
+                  border: discount === 10 ? '1px solid #22c55e' : '1px solid #334155',
+                  background: discount === 10 ? 'linear-gradient(135deg, #22c55e, #15803d)' : '#1e293b',
+                  color: discount === 10 ? '#ffffff' : '#94a3b8',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: discount === 10 ? '0 4px 12px rgba(34, 197, 94, 0.35)' : 'none',
+                }}
+                onClick={() => handleDiscountPercentageChange(10)}
+              >
+                10% Off
+              </button>
+              <button
+                type="button"
+                style={{
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  borderRadius: '8px',
+                  border: discount === 15 ? '1px solid #a855f7' : '1px solid #334155',
+                  background: discount === 15 ? 'linear-gradient(135deg, #a855f7, #7e22ce)' : '#1e293b',
+                  color: discount === 15 ? '#ffffff' : '#94a3b8',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: discount === 15 ? '0 4px 12px rgba(168, 85, 247, 0.35)' : 'none',
+                }}
+                onClick={() => handleDiscountPercentageChange(15)}
+              >
+                15% Off
+              </button>
+            </div>
+
+            <select
+              style={{
+                ...baseStyles.searchInput,
+                marginBottom: 0,
+                width: '100%',
+                background: '#0f172a',
+                color: '#f8fafc',
+                border: '1px solid #334155',
+                padding: '8px 12px',
+                fontSize: '12px',
+                cursor: 'pointer',
+              }}
+              value={discount}
+              onChange={(e) => handleDiscountPercentageChange(e.target.value)}
+            >
+              <option value={0} style={{ background: '#1e293b', color: '#fff' }}>No Discount (0%)</option>
+              <option value={10} style={{ background: '#1e293b', color: '#fff' }}>10% Discount</option>
+              <option value={15} style={{ background: '#1e293b', color: '#fff' }}>15% Discount</option>
+            </select>
+          </div>
+
+          {/* Reduced Amount Option */}
+          <div style={{ paddingTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+              ✂️ Reduced Amount (₹):
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontWeight: 'bold' }}>₹</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  style={{
+                    ...baseStyles.searchInput,
+                    paddingLeft: '28px',
+                    marginBottom: 0,
+                    width: '100%',
+                    background: '#0f172a',
+                    color: '#f8fafc',
+                    border: '1px solid #334155',
+                  }}
+                  value={reducedAmount === 0 ? '' : reducedAmount}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    setReducedAmount(isNaN(val) || val < 0 ? 0 : val);
+                  }}
+                  placeholder="Enter reduced amount (e.g. 50, 100)"
+                />
+              </div>
+              {reducedAmount > 0 && (
+                <button
+                  type="button"
+                  style={{
+                    padding: '10px 14px',
+                    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => setReducedAmount(0)}
+                  title="Clear reduction"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <span style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', display: 'block' }}>
+              * Direct flat amount reduction (applied and mentioned on thermal bill).
+            </span>
+          </div>
+        </div>
+
+        {/* ── Manual Item Entry Modal ── */}
+        {showManualModal && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.78)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 10000,
+            backdropFilter: 'blur(3px)',
+          }}>
+            <div style={{
+              backgroundColor: '#1e293b',
+              padding: '24px',
+              borderRadius: '12px',
+              width: '90%',
+              maxWidth: '520px',
+              border: '1px solid #334155',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>
+                <h3 style={{ margin: 0, color: '#f8fafc', fontSize: '17px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  ✏️ Add Manual Item to Bill
+                </h3>
+                <button
+                  style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '18px' }}
+                  onClick={() => setShowManualModal(false)}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleAddManualItem}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Item Name *
+                    </label>
+                    <input
+                      type="text"
+                      style={baseStyles.searchInput}
+                      value={manualItem.name}
+                      onChange={(e) => setManualItem({ ...manualItem, name: e.target.value })}
+                      placeholder="e.g. Linen Fabric / Shirt"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Barcode / Code (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      style={baseStyles.searchInput}
+                      value={manualItem.productCode}
+                      onChange={(e) => setManualItem({ ...manualItem, productCode: e.target.value })}
+                      placeholder="e.g. RV-CUSTOM"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Category
+                    </label>
+                    <input
+                      type="text"
+                      style={baseStyles.searchInput}
+                      value={manualItem.category}
+                      onChange={(e) => setManualItem({ ...manualItem, category: e.target.value })}
+                      placeholder="e.g. F-SHIRT, Fabric"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Size / Style
+                    </label>
+                    <input
+                      type="text"
+                      style={baseStyles.searchInput}
+                      value={manualItem.size}
+                      onChange={(e) => setManualItem({ ...manualItem, size: e.target.value })}
+                      placeholder="e.g. 40, L, XL"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '18px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#38bdf8', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      MRP / Price (₹) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      style={{ ...baseStyles.searchInput, borderColor: '#38bdf8' }}
+                      value={manualItem.price}
+                      onChange={(e) => setManualItem({ ...manualItem, price: e.target.value, mrp: e.target.value })}
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Quantity *
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="1"
+                      style={baseStyles.searchInput}
+                      value={manualItem.quantity}
+                      onChange={(e) => setManualItem({ ...manualItem, quantity: Math.max(1, parseInt(e.target.value) || 1) })}
+                      placeholder="1"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid #334155', paddingTop: '14px' }}>
+                  <button
+                    type="button"
+                    style={{ ...baseStyles.btn, background: '#334155', color: '#f1f5f9' }}
+                    onClick={() => setShowManualModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    style={{ ...baseStyles.btn, background: '#6366f1', color: '#ffffff', fontWeight: '700' }}
+                  >
+                    + Add to Bill
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         <div style={baseStyles.selectedProducts}>
           <h3 style={baseStyles.selectedProductsTitle}>
@@ -2521,7 +2958,7 @@ const Bill = () => {
           </h3>
           <div style={baseStyles.selectedItemsList}>
             {selectedProducts.length === 0 ? (
-              <p style={baseStyles.noItems}>No items added yet. Search or scan products to add.</p>
+              <p style={baseStyles.noItems}>No items added yet. Search, scan, or click "Manual Entry" to add.</p>
             ) : (
               selectedProducts.map(product => (
                 <div
@@ -2533,13 +2970,36 @@ const Bill = () => {
                     <span style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
                       {product.productCode ? <span style={{ fontFamily: 'monospace', color: '#fbbf24', marginRight: '4px' }}>{product.productCode}</span> : null}
                       {product.category ? <span style={{ color: '#a5b4fc', marginRight: '4px' }}>{product.category}</span> : null}
-                      {product.unit ? <span style={{ color: '#6ee7b7', marginRight: '4px' }}>{product.unit}</span> : null}
-                      Stock: {product.maxQuantity}
+                      {product.isManual ? <span style={{ color: '#ec4899', fontWeight: 'bold', marginRight: '4px' }}>[Manual]</span> : (product.maxQuantity !== undefined ? `Stock: ${product.maxQuantity}` : '')}
                     </span>
                   </div>
-                  <div style={baseStyles.itemPrice}>₹{product.sellPrice}</div>
 
-                  {/* Clean Modern Quantity Stepper without legacy spinners or badges */}
+                  {/* Editable MRP / Price with interactive input */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <span style={{ color: '#94a3b8', fontSize: '12px', fontWeight: 'bold' }}>₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={product.sellPrice !== undefined ? product.sellPrice : (product.mrp || 0)}
+                      onChange={(e) => updateProductPrice(product.id, e.target.value)}
+                      style={{
+                        width: '78px',
+                        padding: '4px 6px',
+                        background: '#0f172a',
+                        color: '#38bdf8',
+                        border: '1px solid #334155',
+                        borderRadius: '6px',
+                        fontWeight: '700',
+                        fontSize: '13px',
+                        textAlign: 'right',
+                        outline: 'none',
+                      }}
+                      title="Click to edit MRP / Price for this bill"
+                    />
+                  </div>
+
+                  {/* Clean Modern Quantity Stepper */}
                   <div style={baseStyles.qtyStepper}>
                     <button
                       type="button"
@@ -2560,18 +3020,18 @@ const Bill = () => {
                       type="button"
                       style={{
                         ...baseStyles.qtyBtnPlus,
-                        opacity: product.quantity >= product.maxQuantity ? 0.4 : 1,
-                        cursor: product.quantity >= product.maxQuantity ? 'not-allowed' : 'pointer'
+                        opacity: !product.isManual && product.quantity >= product.maxQuantity ? 0.4 : 1,
+                        cursor: !product.isManual && product.quantity >= product.maxQuantity ? 'not-allowed' : 'pointer'
                       }}
-                      onClick={() => updateQuantity(product.id, Math.min(product.maxQuantity, product.quantity + 1))}
-                      disabled={product.quantity >= product.maxQuantity}
+                      onClick={() => updateQuantity(product.id, product.isManual ? product.quantity + 1 : Math.min(product.maxQuantity, product.quantity + 1))}
+                      disabled={!product.isManual && product.quantity >= product.maxQuantity}
                       title="Increase quantity"
                     >
                       +
                     </button>
                   </div>
 
-                  <div style={baseStyles.itemTotal}>₹{product.total.toFixed(2)}</div>
+                  <div style={baseStyles.itemTotal}>₹{(product.total || 0).toFixed(2)}</div>
                   <button
                     type="button"
                     style={baseStyles.removeBtn}
@@ -2621,7 +3081,7 @@ const Bill = () => {
               GSTIN : {shopDetails.gst || '33GAHPR3113J1ZP'}
             </div>
             <div style={baseStyles.receiptHeaderP}>
-              Ph:{shopDetails.phone || '8220912322 / 9843738588'}
+              Ph:{shopDetails.phone || '9843738588'}
             </div>
 
             <div style={baseStyles.receiptDividerSolid}></div>
@@ -2705,68 +3165,6 @@ const Bill = () => {
                 onChange={(e) => setCustomerGST(e.target.value)}
                 placeholder="GST Number (if applicable)"
               />
-            </div>
-
-            {/* Discount Section - No-Print */}
-            <div style={baseStyles.discountSection} className="no-print">
-              <div
-                style={baseStyles.discountHeader}
-                onClick={() => setShowDiscountInput(!showDiscountInput)}
-              >
-                <span style={baseStyles.discountTitle}>
-                  {manualDiscount ? '✏️ Manual Discount' :
-                    customerType === 'wholesale' ? '🏭 Wholesale Discount (10%)' :
-                    customerType === 'bulk' ? '📦 Bulk Discount (15%)' :
-                    '💰 Discount'}
-                </span>
-                <span style={baseStyles.discountToggle}>
-                  {showDiscountInput ? '▼' : '▶'}
-                </span>
-              </div>
-
-              {showDiscountInput && (
-                <div style={baseStyles.discountControls}>
-                  <select
-                    style={baseStyles.discountTypeSelect}
-                    value={discountType}
-                    onChange={(e) => handleDiscountTypeChange(e.target.value)}
-                  >
-                    <option value="percentage">Percentage (%)</option>
-                    <option value="fixed">Fixed Amount (₹)</option>
-                  </select>
-
-                  <input
-                    type="number"
-                    style={baseStyles.discountInput}
-                    value={discount}
-                    onChange={(e) => handleDiscountChange(e.target.value)}
-                    min="0"
-                    max={discountType === 'percentage' ? 100 : subtotal}
-                    step={discountType === 'percentage' ? '1' : '0.01'}
-                    placeholder={discountType === 'percentage' ? 'Enter %' : 'Enter amount'}
-                  />
-                </div>
-              )}
-
-              <div style={baseStyles.discountAmount}>
-                Discount Amount: -₹{discountAmount.toFixed(2)}
-              </div>
-
-              {manualDiscount && (
-                <button
-                  style={{
-                    ...baseStyles.btn,
-                    ...baseStyles.btnSecondary,
-                    fontSize: '9px',
-                    padding: '2px 5px',
-                    marginTop: '5px',
-                    width: '100%'
-                  }}
-                  onClick={resetDiscountToDefault}
-                >
-                  Reset to Default
-                </button>
-              )}
             </div>
 
             {/* Items Table */}
@@ -2935,9 +3333,15 @@ const Bill = () => {
                 <span>{promoDiscount.toFixed(2)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', margin: '1.5px 0' }}>
-                <span>Bill Discount:</span>
+                <span>Bill Discount {discount > 0 ? `(${discount}%)` : ''}:</span>
                 <span>{discountAmount.toFixed(2)}</span>
               </div>
+              {reducedAmount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', margin: '1.5px 0' }}>
+                  <span>Reduced Amount:</span>
+                  <span>-{(parseFloat(reducedAmount) || 0).toFixed(2)}</span>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', margin: '1.5px 0' }}>
                 <span>Total Savings:</span>
                 <span>{totalSavings.toFixed(2)}</span>

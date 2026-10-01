@@ -44,7 +44,7 @@ const InvoicePage = () => {
   const companyDetails = {
     name: "RV Fashion",
     address: "#1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003",
-    phone: "8220912322 / 9843738588",
+    phone: "9843738588",
     email: "",
     gstin: "33GAHPR3113J1ZP"
   };
@@ -887,7 +887,7 @@ const InvoicePage = () => {
             <img src="/avva-logo.jpeg" class="company-logo" alt="RV Textiles Logo">
             <div class="company-name">RV Fashion</div>
             <div class="company-details">#1944, TNHB H.G.ROAD, KAKKALUR BY PASS, KAKKALUR- 602003</div>
-            <div class="company-details">Phone: 8220912322 / 9843738588 | GST: 33GAHPR3113J1ZP</div>
+            <div class="company-details">Phone: 9843738588 | GST: 33GAHPR3113J1ZP</div>
           </div>
           
           <div class="document-title">TAX INVOICE</div>

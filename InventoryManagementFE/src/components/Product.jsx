@@ -15,19 +15,19 @@ const SUPPLIER_API_URL = "http://localhost:5000/api";
 
 export const APPAREL_CATEGORIES_MAP = [
   // ── Men's Categories ──
-  { section: "Men", category: "F-SHIRT",        style: "RV-01", fhShirts: "Full Sleeve", label: "F-SHIRT (RV-01)" },
-  { section: "Men", category: "H-SHIRT",        style: "RV-02", fhShirts: "Half Sleeve", label: "H-SHIRT (RV-02)" },
-  { section: "Men", category: "T..F SHIRT",     style: "RV-03", fhShirts: "Full Sleeve", label: "T..F SHIRT (RV-03)" },
-  { section: "Men", category: "T..H SHIRT",     style: "RV-04", fhShirts: "Half Sleeve", label: "T..H SHIRT (RV-04)" },
-  { section: "Men", category: "F PANT",         style: "RV-05", fhShirts: "—",           label: "F PANT (RV-05)" },
-  { section: "Men", category: "JEANS",          style: "RV-06", fhShirts: "—",           label: "JEANS (RV-06)" },
-  { section: "Men", category: "TRACKS",         style: "RV-07", fhShirts: "—",           label: "TRACKS (RV-07)" },
-  { section: "Men", category: "SHORTS",         style: "RV-08", fhShirts: "—",           label: "SHORTS (RV-08)" },
-  { section: "Men", category: "INNERS",         style: "RV-09", fhShirts: "—",           label: "INNERS (RV-09)" },
+  { section: "Men", category: "F-SHIRT", style: "RV-01", fhShirts: "Full Sleeve", label: "F-SHIRT (RV-01)" },
+  { section: "Men", category: "H-SHIRT", style: "RV-02", fhShirts: "Half Sleeve", label: "H-SHIRT (RV-02)" },
+  { section: "Men", category: "T..F SHIRT", style: "RV-03", fhShirts: "Full Sleeve", label: "T..F SHIRT (RV-03)" },
+  { section: "Men", category: "T..H SHIRT", style: "RV-04", fhShirts: "Half Sleeve", label: "T..H SHIRT (RV-04)" },
+  { section: "Men", category: "F PANT", style: "RV-05", fhShirts: "—", label: "F PANT (RV-05)" },
+  { section: "Men", category: "JEANS", style: "RV-06", fhShirts: "—", label: "JEANS (RV-06)" },
+  { section: "Men", category: "TRACKS", style: "RV-07", fhShirts: "—", label: "TRACKS (RV-07)" },
+  { section: "Men", category: "SHORTS", style: "RV-08", fhShirts: "—", label: "SHORTS (RV-08)" },
+  { section: "Men", category: "INNERS", style: "RV-09", fhShirts: "—", label: "INNERS (RV-09)" },
   // ── Ladies' Categories ──
-  { section: "Ladies", category: "S -TOP",         style: "RV-11", fhShirts: "—",           label: "S -TOP (RV-11)" },
-  { section: "Ladies", category: "2 PCS SET TOPS", style: "RV-12", fhShirts: "—",           label: "2 PCS SET TOPS (RV-12)" },
-  { section: "Ladies", category: "3-PCS SET TOP",  style: "RV-13", fhShirts: "—",           label: "3-PCS SET TOP (RV-13)" },
+  { section: "Ladies", category: "S -TOP", style: "RV-11", fhShirts: "—", label: "S -TOP (RV-11)" },
+  { section: "Ladies", category: "2 PCS SET TOPS", style: "RV-12", fhShirts: "—", label: "2 PCS SET TOPS (RV-12)" },
+  { section: "Ladies", category: "3-PCS SET TOP", style: "RV-13", fhShirts: "—", label: "3-PCS SET TOP (RV-13)" },
 ];
 
 export const CATEGORY_TO_STYLE = {
@@ -89,54 +89,54 @@ const LOW_STOCK_THRESHOLD = 5;
 
 export default function ItemsPage() {
   // ── Core state ─────────────────────────────────────────────────────────────
-  const [items,   setItems]   = useState([]);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [saving,  setSaving]  = useState(false);
+  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
   const [suppliers, setSuppliers] = useState([]);
 
   // ── Filter state ───────────────────────────────────────────────────────────
-  const [search,         setSearch]         = useState("");
+  const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
-  const [filterStyle,    setFilterStyle]    = useState("");
-  const [filterSite,     setFilterSite]     = useState("");
-  const [filterSize,     setFilterSize]     = useState("");
+  const [filterStyle, setFilterStyle] = useState("");
+  const [filterSite, setFilterSite] = useState("");
+  const [filterSize, setFilterSize] = useState("");
   const [filterFhShirts, setFilterFhShirts] = useState("");
-  const [minPrice,       setMinPrice]       = useState("");
-  const [maxPrice,       setMaxPrice]       = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
   const [filterLowStock, setFilterLowStock] = useState(false);
 
   // ── Sort state ─────────────────────────────────────────────────────────────
-  const [sortBy,  setSortBy]  = useState("created_at");
+  const [sortBy, setSortBy] = useState("created_at");
   const [sortDir, setSortDir] = useState("desc");
 
   // ── Pagination state ───────────────────────────────────────────────────────
-  const [currentPage,  setCurrentPage]  = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [totalItems,   setTotalItems]   = useState(0);
-  const [totalPages,   setTotalPages]   = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // ── Stats from API ─────────────────────────────────────────────────────────
   const [filterSummary, setFilterSummary] = useState(null);
 
   // ── Edit / Add modal ───────────────────────────────────────────────────────
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editingItem,   setEditingItem]   = useState(null);
+  const [editingItem, setEditingItem] = useState(null);
   const [showMoreFields, setShowMoreFields] = useState(false);
 
   // ── Import modal ───────────────────────────────────────────────────────────
-  const [showImportModal,  setShowImportModal]  = useState(false);
-  const [importedItems,    setImportedItems]    = useState([]);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importedItems, setImportedItems] = useState([]);
   const [processingImport, setProcessingImport] = useState(false);
-  const [importStats,      setImportStats]      = useState({ added: 0, updated: 0, skipped: 0 });
+  const [importStats, setImportStats] = useState({ added: 0, updated: 0, skipped: 0 });
 
   // ── Product Sticker modal state ────────────────────────────────────────────
   const [showStickerModal, setShowStickerModal] = useState(false);
-  const [stickerProduct,   setStickerProduct]   = useState(null);
-  const [stickerCopies,    setStickerCopies]    = useState(1);
-  const [stickerMrp,       setStickerMrp]       = useState("");
+  const [stickerProduct, setStickerProduct] = useState(null);
+  const [stickerCopies, setStickerCopies] = useState(1);
+  const [stickerMrp, setStickerMrp] = useState("");
   const [stickerSellPrice, setStickerSellPrice] = useState("");
-  const [stickerBarcode,   setStickerBarcode]   = useState("");
+  const [stickerBarcode, setStickerBarcode] = useState("");
   const previewSvgRef = useRef(null);
 
   // ── Computed: any active filter? ───────────────────────────────────────────
@@ -159,7 +159,7 @@ export default function ItemsPage() {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, filterCategory, filterStyle, filterSite, filterSize, filterFhShirts,
-      minPrice, maxPrice, filterLowStock, itemsPerPage, sortBy, sortDir]);
+    minPrice, maxPrice, filterLowStock, itemsPerPage, sortBy, sortDir]);
 
   // Auto-hide message
   useEffect(() => {
@@ -190,38 +190,38 @@ export default function ItemsPage() {
   const buildProductUrl = useCallback(
     (page) => {
       const params = new URLSearchParams();
-      params.set("page",       page);
-      params.set("per_page",   itemsPerPage);
-      params.set("sort_by",    sortBy);
+      params.set("page", page);
+      params.set("per_page", itemsPerPage);
+      params.set("sort_by", sortBy);
       params.set("sort_order", sortDir);
-      if (search.trim())        params.set("search",    search.trim());
-      if (filterCategory)       params.set("category",  filterCategory);
-      if (filterStyle)          params.set("style",     filterStyle);
-      if (filterSite)           params.set("site_name", filterSite);
-      if (filterSize)           params.set("size",      filterSize);
-      if (filterFhShirts)       params.set("fh_shirts", filterFhShirts);
+      if (search.trim()) params.set("search", search.trim());
+      if (filterCategory) params.set("category", filterCategory);
+      if (filterStyle) params.set("style", filterStyle);
+      if (filterSite) params.set("site_name", filterSite);
+      if (filterSize) params.set("size", filterSize);
+      if (filterFhShirts) params.set("fh_shirts", filterFhShirts);
       if (minPrice !== "" && !isNaN(+minPrice)) params.set("min_price", minPrice);
       if (maxPrice !== "" && !isNaN(+maxPrice)) params.set("max_price", maxPrice);
-      if (filterLowStock)       params.set("low_stock", "true");
+      if (filterLowStock) params.set("low_stock", "true");
       return `${API_URL}?${params.toString()}`;
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [search, filterCategory, filterStyle, filterSite, filterSize, filterFhShirts,
-     minPrice, maxPrice, filterLowStock, itemsPerPage, sortBy, sortDir]
+      minPrice, maxPrice, filterLowStock, itemsPerPage, sortBy, sortDir]
   );
 
   const loadProducts = async (page = 1) => {
     setLoading(true);
     try {
-      const res  = await fetch(buildProductUrl(page));
+      const res = await fetch(buildProductUrl(page));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
       let arr = [];
       if (data?.items && Array.isArray(data.items)) {
         arr = data.items;
-        setTotalItems(data.total  || 0);
-        setTotalPages(data.pages  || 1);
+        setTotalItems(data.total || 0);
+        setTotalPages(data.pages || 1);
         setCurrentPage(data.current_page || page);
         if (data.filter_summary) setFilterSummary(data.filter_summary);
       } else if (Array.isArray(data)) {
@@ -400,35 +400,35 @@ export default function ItemsPage() {
     setSaving(true);
     try {
       const productData = {
-        siteName:    editingItem.siteName?.trim() || "RV Fashion",
+        siteName: editingItem.siteName?.trim() || "RV Fashion",
         productCode: barcode,
-        barcode:     barcode,
-        category:    editingItem.category?.trim() || "",
-        size:        editingItem.size?.trim() || "",
-        colour:      editingItem.colour?.trim() || "",
-        color:       editingItem.colour?.trim() || "",
-        fhShirts:    editingItem.fhShirts?.trim() || "",
-        style:       editingItem.style?.trim() || "",
-        mrp:         mrp,
-        sellPrice:   parseFloat(editingItem.sellPrice) || mrp,
-        buyPrice:    parseFloat(editingItem.buyPrice) || 0,
-        quantity:    parseInt(editingItem.quantity) || 0,
-        qty:         parseInt(editingItem.quantity) || 0,
-        supplierId:  editingItem.supplierId || null,
-        name:        editingItem.name?.trim() || `${editingItem.category || 'Item'} ${editingItem.style || ''} ${editingItem.fhShirts || ''} ${editingItem.size || ''}`.trim(),
+        barcode: barcode,
+        category: editingItem.category?.trim() || "",
+        size: editingItem.size?.trim() || "",
+        colour: editingItem.colour?.trim() || "",
+        color: editingItem.colour?.trim() || "",
+        fhShirts: editingItem.fhShirts?.trim() || "",
+        style: editingItem.style?.trim() || "",
+        mrp: mrp,
+        sellPrice: parseFloat(editingItem.sellPrice) || mrp,
+        buyPrice: parseFloat(editingItem.buyPrice) || 0,
+        quantity: parseInt(editingItem.quantity) || 0,
+        qty: parseInt(editingItem.quantity) || 0,
+        supplierId: editingItem.supplierId || null,
+        name: editingItem.name?.trim() || `${editingItem.category || 'Item'} ${editingItem.style || ''} ${editingItem.fhShirts || ''} ${editingItem.size || ''}`.trim(),
       };
 
       const response = editingItem.isNew
         ? await fetch(API_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(productData),
-          })
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(productData),
+        })
         : await fetch(`${API_URL}/${editingItem.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(productData),
-          });
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(productData),
+        });
 
       if (!response.ok) {
         const err = await response.json();
@@ -571,21 +571,21 @@ export default function ItemsPage() {
 
   const handleExport = async () => {
     try {
-      const res  = await fetch(buildProductUrl(1).replace(`per_page=${itemsPerPage}`, "per_page=5000"));
+      const res = await fetch(buildProductUrl(1).replace(`per_page=${itemsPerPage}`, "per_page=5000"));
       const data = await res.json();
-      const arr  = data?.items ?? (Array.isArray(data) ? data : []);
+      const arr = data?.items ?? (Array.isArray(data) ? data : []);
 
       const exportData = arr.map((item, idx) => ({
-        "SL NO":       idx + 1,
-        "SITE NAME":   item.siteName || item.site_name || "RV Fashion",
-        "BARCODE":     item.barcode || item.productCode || "",
-        "CATEGORY":    item.category || "",
-        "SIZE":        item.size || "",
-        "COLOUR":      item.colour || item.color || "",
-        "F/H SHIRTS":  item.fhShirts || item.fh_shirts || "",
-        "MRP":         item.mrp !== undefined && item.mrp !== null ? Number(item.mrp) : (Number(item.sellPrice) || 0),
-        "QTY":         item.quantity ?? item.qty ?? 0,
-        "STYLE":       item.style || "",
+        "SL NO": idx + 1,
+        "SITE NAME": item.siteName || item.site_name || "RV Fashion",
+        "BARCODE": item.barcode || item.productCode || "",
+        "CATEGORY": item.category || "",
+        "SIZE": item.size || "",
+        "COLOUR": item.colour || item.color || "",
+        "F/H SHIRTS": item.fhShirts || item.fh_shirts || "",
+        "MRP": item.mrp !== undefined && item.mrp !== null ? Number(item.mrp) : (Number(item.sellPrice) || 0),
+        "QTY": item.quantity ?? item.qty ?? 0,
+        "STYLE": item.style || "",
       }));
 
       const ws = XLSX.utils.json_to_sheet(exportData);
@@ -623,7 +623,7 @@ export default function ItemsPage() {
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
-        const wb   = XLSX.read(new Uint8Array(evt.target.result), { type: "array" });
+        const wb = XLSX.read(new Uint8Array(evt.target.result), { type: "array" });
         const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
         if (!rows.length) { showMessage("error", "No data in file"); return; }
 
@@ -760,19 +760,19 @@ export default function ItemsPage() {
   // ─────────────────────────────────────────────────────────────────────────
 
   const paginate = (n) => { if (n > 0 && n <= totalPages) { setCurrentPage(n); loadProducts(n); } };
-  const goPrev   = ()  => { if (currentPage > 1)          { const p = currentPage - 1; setCurrentPage(p); loadProducts(p); } };
-  const goNext   = ()  => { if (currentPage < totalPages)  { const p = currentPage + 1; setCurrentPage(p); loadProducts(p); } };
+  const goPrev = () => { if (currentPage > 1) { const p = currentPage - 1; setCurrentPage(p); loadProducts(p); } };
+  const goNext = () => { if (currentPage < totalPages) { const p = currentPage + 1; setCurrentPage(p); loadProducts(p); } };
 
   // ─────────────────────────────────────────────────────────────────────────
   // STYLES
   // ─────────────────────────────────────────────────────────────────────────
 
   const S = {
-    container:    { padding: "30px 40px", backgroundColor: "#0f172a", minHeight: "100vh", color: "#f1f5f9", fontFamily: "'Inter', system-ui, sans-serif" },
-    header:       { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" },
-    headerTitle:  { display: "flex", alignItems: "center", gap: "12px" },
-    title:        { fontSize: "24px", fontWeight: "700", margin: 0, letterSpacing: "-0.5px" },
-    buttonGroup:  { display: "flex", gap: "8px", flexWrap: "wrap" },
+    container: { padding: "30px 40px", backgroundColor: "#0f172a", minHeight: "100vh", color: "#f1f5f9", fontFamily: "'Inter', system-ui, sans-serif" },
+    header: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" },
+    headerTitle: { display: "flex", alignItems: "center", gap: "12px" },
+    title: { fontSize: "24px", fontWeight: "700", margin: 0, letterSpacing: "-0.5px" },
+    buttonGroup: { display: "flex", gap: "8px", flexWrap: "wrap" },
 
     // Buttons
     btn: {
@@ -782,7 +782,7 @@ export default function ItemsPage() {
       fontWeight: "500", transition: "all 0.15s",
     },
     btnPrimary: { backgroundColor: "#6366f1", border: "none", color: "#fff", fontWeight: "600" },
-    btnGhost:   { background: "none", border: "none", color: "#64748b", cursor: "pointer", padding: "6px", borderRadius: "6px", display: "flex", alignItems: "center" },
+    btnGhost: { background: "none", border: "none", color: "#64748b", cursor: "pointer", padding: "6px", borderRadius: "6px", display: "flex", alignItems: "center" },
 
     // Filter bar
     filterBar: {
@@ -795,7 +795,7 @@ export default function ItemsPage() {
       color: "#f1f5f9", borderRadius: "6px", fontSize: "13px", minWidth: "130px",
     },
     filterSearchWrapper: { position: "relative", flex: "1", minWidth: "200px", maxWidth: "340px" },
-    filterSearchIcon:    { position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#64748b" },
+    filterSearchIcon: { position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#64748b" },
     filterSearchInput: {
       width: "100%", padding: "7px 10px 7px 34px", backgroundColor: "#0f172a",
       border: "1px solid #334155", color: "#f1f5f9", borderRadius: "6px", fontSize: "13px",
@@ -830,7 +830,7 @@ export default function ItemsPage() {
 
     // Table
     tableWrap: { overflowX: "auto", borderRadius: "10px", border: "1px solid #334155", backgroundColor: "#1e293b" },
-    table:     { width: "100%", borderCollapse: "collapse", minWidth: "1150px" },
+    table: { width: "100%", borderCollapse: "collapse", minWidth: "1150px" },
     th: {
       backgroundColor: "#0f172a", padding: "12px 14px", textAlign: "left",
       color: "#94a3b8", fontWeight: "700", fontSize: "12px", whiteSpace: "nowrap",
@@ -844,8 +844,8 @@ export default function ItemsPage() {
       letterSpacing: "0.5px", textTransform: "uppercase",
       borderBottom: "1px solid #334155",
     },
-    td:         { padding: "11px 14px", borderTop: "1px solid #33415544", color: "#e2e8f0", fontSize: "13px" },
-    tdLowStock: { padding: "11px 14px", borderTop: "1px solid #33415544", color: "#e2e8f0", fontSize: "13px", borderLeft: "3px solid #d97706" },
+    td: { padding: "11px 14px", borderTop: "1px solid #33415544", color: "#e2e8f0", fontSize: "13px" },
+    tdLowStock: { padding: "11px 14px", borderTop: "1px solid #33415544", color: "#e2e8f0", fontSize: "13px" },
 
     // Badges / Pills
     catPill: {
@@ -863,27 +863,27 @@ export default function ItemsPage() {
       fontWeight: "500", backgroundColor: "rgba(148,163,184,0.10)", color: "#cbd5e1",
       border: "1px solid rgba(148,163,184,0.20)",
     },
-    codePill:  { fontFamily: "monospace", fontSize: "12.5px", fontWeight: "600", color: "#fbbf24", letterSpacing: "0.5px" },
-    lowBadge:  { display: "inline-flex", alignItems: "center", gap: "3px", padding: "1px 7px", borderRadius: "12px", fontSize: "10px", fontWeight: "600", backgroundColor: "rgba(217,119,6,0.15)", color: "#fbbf24", border: "1px solid rgba(217,119,6,0.3)", marginLeft: "6px" },
+    codePill: { fontFamily: "monospace", fontSize: "12.5px", fontWeight: "600", color: "#fbbf24", letterSpacing: "0.5px" },
+    lowBadge: { display: "inline-flex", alignItems: "center", gap: "3px", padding: "1px 7px", borderRadius: "12px", fontSize: "10px", fontWeight: "600", backgroundColor: "rgba(217,119,6,0.15)", color: "#fbbf24", border: "1px solid rgba(217,119,6,0.3)", marginLeft: "6px" },
 
     // Action buttons
     actionBtns: { display: "flex", gap: "6px" },
     stickerBtn: { background: "none", border: "none", cursor: "pointer", padding: "5px", borderRadius: "4px", color: "#38bdf8", display: "flex", alignItems: "center" },
-    editBtn:    { background: "none", border: "none", cursor: "pointer", padding: "5px", borderRadius: "4px", color: "#818cf8", display: "flex", alignItems: "center" },
-    delBtn:     { background: "none", border: "none", cursor: "pointer", padding: "5px", borderRadius: "4px", color: "#f87171", display: "flex", alignItems: "center" },
+    editBtn: { background: "none", border: "none", cursor: "pointer", padding: "5px", borderRadius: "4px", color: "#818cf8", display: "flex", alignItems: "center" },
+    delBtn: { background: "none", border: "none", cursor: "pointer", padding: "5px", borderRadius: "4px", color: "#f87171", display: "flex", alignItems: "center" },
 
     // Message
     msg: { padding: "11px 18px", borderRadius: "7px", marginBottom: "14px", fontSize: "13px", fontWeight: "500" },
     msgSuccess: { backgroundColor: "rgba(22,163,74,0.15)", color: "#4ade80", border: "1px solid #16a34a" },
-    msgError:   { backgroundColor: "rgba(220,38,38,0.15)", color: "#f87171",  border: "1px solid #dc2626" },
-    msgInfo:    { backgroundColor: "rgba(59,130,246,0.15)", color: "#60a5fa", border: "1px solid #3b82f6" },
+    msgError: { backgroundColor: "rgba(220,38,38,0.15)", color: "#f87171", border: "1px solid #dc2626" },
+    msgInfo: { backgroundColor: "rgba(59,130,246,0.15)", color: "#60a5fa", border: "1px solid #3b82f6" },
 
     // Empty state
     emptyState: { textAlign: "center", padding: "48px", color: "#64748b", fontStyle: "italic" },
     loadingRow: { textAlign: "center", padding: "48px", color: "#64748b" },
 
     // Pagination
-    pagRow:  { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", flexWrap: "wrap", gap: "10px" },
+    pagRow: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", flexWrap: "wrap", gap: "10px" },
     pagInfo: { color: "#64748b", fontSize: "13px" },
     pagControls: { display: "flex", gap: "6px", alignItems: "center" },
     pagBtn: (active, disabled) => ({
@@ -904,21 +904,21 @@ export default function ItemsPage() {
   // Modal styles
   const M = {
     overlay: { position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.78)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, backdropFilter: "blur(2px)" },
-    box:     { backgroundColor: "#1e293b", padding: "26px", borderRadius: "12px", width: "90%", maxWidth: "640px", maxHeight: "88vh", overflow: "auto", border: "1px solid #334155", boxShadow: "0 20px 40px rgba(0,0,0,0.5)" },
-    lgBox:   { backgroundColor: "#1e293b", padding: "26px", borderRadius: "12px", width: "94%", maxWidth: "1050px", maxHeight: "84vh", overflow: "auto", border: "1px solid #334155", boxShadow: "0 20px 40px rgba(0,0,0,0.5)" },
-    header:  { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", paddingBottom: "12px", borderBottom: "1px solid #334155" },
-    title:   { fontSize: "18px", fontWeight: "700", color: "#f1f5f9", margin: 0, display: "flex", alignItems: "center", gap: "8px" },
-    closeBtn:{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", padding: "4px", borderRadius: "4px" },
-    group:   { marginBottom: "14px" },
-    label:   { display: "block", marginBottom: "5px", color: "#94a3b8", fontSize: "11.5px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" },
-    input:   { width: "100%", padding: "9px 11px", backgroundColor: "#0f172a", border: "1px solid #334155", color: "#f1f5f9", borderRadius: "6px", fontSize: "13.5px", boxSizing: "border-box" },
-    select:  { width: "100%", padding: "9px 11px", backgroundColor: "#0f172a", border: "1px solid #334155", color: "#f1f5f9", borderRadius: "6px", fontSize: "13.5px", boxSizing: "border-box", cursor: "pointer" },
-    readOnly:{ padding: "9px 11px", backgroundColor: "#0f172a", border: "1px solid #1e3a5f", color: "#64748b", borderRadius: "6px", fontSize: "13.5px" },
-    row2:    { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" },
-    row3:    { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" },
-    footer:  { display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px", paddingTop: "16px", borderTop: "1px solid #334155" },
-    importTh:{ backgroundColor: "#0f172a", padding: "10px 10px", textAlign: "left", color: "#94a3b8", fontSize: "11px", fontWeight: "700", textTransform: "uppercase", position: "sticky", top: 0 },
-    importTd:{ padding: "9px 10px", borderBottom: "1px solid #334155", color: "#e2e8f0", fontSize: "12px" },
+    box: { backgroundColor: "#1e293b", padding: "26px", borderRadius: "12px", width: "90%", maxWidth: "640px", maxHeight: "88vh", overflow: "auto", border: "1px solid #334155", boxShadow: "0 20px 40px rgba(0,0,0,0.5)" },
+    lgBox: { backgroundColor: "#1e293b", padding: "26px", borderRadius: "12px", width: "94%", maxWidth: "1050px", maxHeight: "84vh", overflow: "auto", border: "1px solid #334155", boxShadow: "0 20px 40px rgba(0,0,0,0.5)" },
+    header: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", paddingBottom: "12px", borderBottom: "1px solid #334155" },
+    title: { fontSize: "18px", fontWeight: "700", color: "#f1f5f9", margin: 0, display: "flex", alignItems: "center", gap: "8px" },
+    closeBtn: { background: "none", border: "none", color: "#94a3b8", cursor: "pointer", padding: "4px", borderRadius: "4px" },
+    group: { marginBottom: "14px" },
+    label: { display: "block", marginBottom: "5px", color: "#94a3b8", fontSize: "11.5px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" },
+    input: { width: "100%", padding: "9px 11px", backgroundColor: "#0f172a", border: "1px solid #334155", color: "#f1f5f9", borderRadius: "6px", fontSize: "13.5px", boxSizing: "border-box" },
+    select: { width: "100%", padding: "9px 11px", backgroundColor: "#0f172a", border: "1px solid #334155", color: "#f1f5f9", borderRadius: "6px", fontSize: "13.5px", boxSizing: "border-box", cursor: "pointer" },
+    readOnly: { padding: "9px 11px", backgroundColor: "#0f172a", border: "1px solid #1e3a5f", color: "#64748b", borderRadius: "6px", fontSize: "13.5px" },
+    row2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" },
+    row3: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" },
+    footer: { display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px", paddingTop: "16px", borderTop: "1px solid #334155" },
+    importTh: { backgroundColor: "#0f172a", padding: "10px 10px", textAlign: "left", color: "#94a3b8", fontSize: "11px", fontWeight: "700", textTransform: "uppercase", position: "sticky", top: 0 },
+    importTd: { padding: "9px 10px", borderBottom: "1px solid #334155", color: "#e2e8f0", fontSize: "12px" },
     statBox: (col) => ({ flex: 1, textAlign: "center", padding: "10px", borderRadius: "6px", backgroundColor: col }),
   };
 
@@ -1187,7 +1187,7 @@ export default function ItemsPage() {
             {(importStats.added || importStats.updated || importStats.skipped) ? (
               <div style={{ display: "flex", gap: "12px", marginTop: "10px" }}>
                 {[
-                  ["Added",   importStats.added,   "rgba(22,163,74,0.15)"],
+                  ["Added", importStats.added, "rgba(22,163,74,0.15)"],
                   ["Updated", importStats.updated, "rgba(99,102,241,0.15)"],
                   ["Skipped", importStats.skipped, "rgba(100,116,139,0.15)"],
                 ].map(([label, val, bg]) => (
@@ -1534,10 +1534,10 @@ export default function ItemsPage() {
       {filterSummary && (
         <div style={S.statsBar}>
           {[
-            { label: "Total Products",  value: filterSummary.total_products.toLocaleString(), accent: "#6366f1" },
-            { label: "Total Quantity",  value: filterSummary.total_qty.toLocaleString(),      accent: "#10b981" },
-            { label: "Total Stock Value", value: `₹${filterSummary.total_value.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, accent: "#f59e0b" },
-            { label: "Avg Product MRP", value: `₹${filterSummary.avg_sell_price.toFixed(2)}`, accent: "#ec4899" },
+            { label: "Total Products", value: (filterSummary.total_products || 0).toLocaleString(), accent: "#6366f1" },
+            { label: "Total Quantity", value: (filterSummary.total_qty || 0).toLocaleString(), accent: "#10b981" },
+            { label: "Total Stock Value", value: `₹${Number(filterSummary.total_value || 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, accent: "#f59e0b" },
+            { label: "Avg Product MRP", value: `₹${Number(filterSummary.avg_mrp !== undefined ? filterSummary.avg_mrp : (filterSummary.avg_sell_price || 0)).toFixed(2)}`, accent: "#ec4899" },
           ].map(({ label, value, accent }) => (
             <div key={label} style={S.statCard(accent)}>
               <div style={S.statLabel}>{label}</div>
@@ -1580,7 +1580,7 @@ export default function ItemsPage() {
               ) : (
                 items.map((item, idx) => {
                   const lowStock = (parseInt(item.quantity) || 0) <= LOW_STOCK_THRESHOLD;
-                  const tdStyle  = lowStock ? S.tdLowStock : S.td;
+                  const tdStyle = lowStock ? S.tdLowStock : S.td;
                   const slNo = (currentPage - 1) * itemsPerPage + idx + 1;
                   const displayBarcode = item.barcode || item.productCode || "—";
                   const displayMrp = item.mrp !== undefined && item.mrp !== null ? parseFloat(item.mrp).toFixed(2) : parseFloat(item.sellPrice || 0).toFixed(2);
@@ -1643,7 +1643,7 @@ export default function ItemsPage() {
                         <div style={S.actionBtns}>
                           <button style={S.stickerBtn} onClick={() => handleOpenStickerModal(item)} title="Print Product Sticker"><Tag size={15} /></button>
                           <button style={S.editBtn} onClick={() => handleEditClick(item)} title="Edit"><Edit size={15} /></button>
-                          <button style={S.delBtn}  onClick={() => handleDelete(item.id)} title="Delete"><Trash2 size={15} /></button>
+                          <button style={S.delBtn} onClick={() => handleDelete(item.id)} title="Delete"><Trash2 size={15} /></button>
                         </div>
                       </td>
                     </tr>
@@ -1671,7 +1671,7 @@ export default function ItemsPage() {
               const n = idx + 1;
               const show = n === 1 || n === totalPages || (n >= currentPage - 2 && n <= currentPage + 2);
               const ellipsis = n === currentPage - 3 || n === currentPage + 3;
-              if (show)     return <button key={n} style={S.pagBtn(currentPage === n, false)} onClick={() => paginate(n)}>{n}</button>;
+              if (show) return <button key={n} style={S.pagBtn(currentPage === n, false)} onClick={() => paginate(n)}>{n}</button>;
               if (ellipsis) return <span key={n} style={{ color: "#475569", padding: "0 2px" }}>…</span>;
               return null;
             })}

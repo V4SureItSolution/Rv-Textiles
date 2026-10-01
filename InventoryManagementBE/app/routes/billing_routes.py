@@ -42,7 +42,7 @@ def search_products_for_billing():
     try:
         query = request.args.get('q', '').strip()
         
-        if not query or len(query) < 2:
+        if not query:
             return jsonify([]), 200
             
         # Search by name, product_code, or category — only in-stock products
@@ -60,7 +60,8 @@ def search_products_for_billing():
             'productCode': p.product_code or '',
             'category': p.category or '',
             'unit': p.unit or '',
-            'sellPrice': p.sell_price,
+            'mrp': p.mrp if p.mrp is not None else (p.sell_price or 0.0),
+            'sellPrice': p.mrp if p.mrp is not None else (p.sell_price or 0.0),
             'buyPrice': p.buy_price,
             'quantity': p.quantity,
             'inStock': p.quantity > 0
@@ -92,13 +93,15 @@ def get_product_by_code(product_code):
         if product.quantity <= 0:
             return jsonify({"error": "Product is out of stock"}), 400
             
+        effective_price = product.mrp if product.mrp is not None else (product.sell_price or 0.0)
         return jsonify({
             'id': product.id,
             'name': product.name,
             'productCode': product.product_code or '',
             'category': product.category or '',
             'unit': product.unit or '',
-            'sellPrice': product.sell_price,
+            'mrp': effective_price,
+            'sellPrice': effective_price,
             'buyPrice': product.buy_price,
             'quantity': product.quantity,
             'inStock': product.quantity > 0
@@ -241,10 +244,10 @@ def create_bill():
         bill.created_by = data.get('createdBy', None)
         bill.created_by_name = data.get('createdByName', 'System')
         
-        # Discount and tax settings (employee should not see discount details)
-        # These will be applied but not shown to employee
+        # Discount, reduced amount and tax settings
         bill.discount = float(data.get('discount', 0))
-        bill.discount_type = data.get('discountType', 'amount')  # 'amount' or 'percentage'
+        bill.discount_type = data.get('discountType', 'percentage')  # 'percentage' or 'amount'
+        bill.reduced_amount = float(data.get('reducedAmount', 0))
         bill.tax = float(data.get('tax', 0))
         bill.tax_type = data.get('taxType', 'percentage')
         
@@ -261,45 +264,59 @@ def create_bill():
         bill.payment_bank_name = data.get('bankName', '')
         bill.payment_cheque_number = data.get('chequeNumber', '')
         
-        # Add items and update stock
+        # Add items and update stock (supports both catalogue items & manual custom items)
         items_added = []
         for item_data in data.get('items', []):
-            product = db.session.get(Product, item_data['productId'])
-            
-            if not product:
-                db.session.rollback()
-                return jsonify({"error": f"Product with ID {item_data['productId']} not found"}), 404
-            
-            quantity = int(item_data['quantity'])
+            quantity = int(item_data.get('quantity', 1))
             if quantity <= 0:
-                db.session.rollback()
-                return jsonify({"error": f"Invalid quantity for {product.name}"}), 400
-                
-            if product.quantity < quantity:
-                db.session.rollback()
-                return jsonify({"error": f"Insufficient stock for {product.name}. Available: {product.quantity}"}), 400
-            
-            # Calculate item total
-            item_total = product.sell_price * quantity
-            
-            # Create bill item — snapshot textile-specific product details
-            bill_item = BillItem(
-                product_id=product.id,
-                product_name=product.name,
-                product_code=product.product_code or '',
-                product_category=product.category or '',
-                product_unit=product.unit or '',
-                sell_price=product.sell_price,
-                quantity=quantity,
-                total=item_total
-            )
-            
-            # Update product quantity
-            product.quantity -= quantity
-            
+                continue
+
+            raw_id = item_data.get('productId')
+            product = None
+            if raw_id and not str(raw_id).startswith('custom') and not str(raw_id).startswith('manual'):
+                try:
+                    product = db.session.get(Product, int(raw_id))
+                except (ValueError, TypeError):
+                    product = None
+
+            if product:
+                if product.quantity < quantity:
+                    db.session.rollback()
+                    return jsonify({"error": f"Insufficient stock for {product.name}. Available: {product.quantity}"}), 400
+
+                effective_price = float(item_data.get('sellPrice') or item_data.get('price') or item_data.get('mrp') or product.mrp or product.sell_price or 0.0)
+                item_total = effective_price * quantity
+
+                bill_item = BillItem(
+                    product_id=product.id,
+                    product_name=item_data.get('name') or product.name,
+                    product_code=item_data.get('productCode') or product.product_code or '',
+                    product_category=item_data.get('category') or product.category or '',
+                    product_unit=item_data.get('unit') or product.unit or '',
+                    sell_price=effective_price,
+                    quantity=quantity,
+                    total=item_total
+                )
+                product.quantity -= quantity
+            else:
+                # Manual entry / custom product without db stock link
+                effective_price = float(item_data.get('sellPrice') or item_data.get('price') or item_data.get('mrp') or 0.0)
+                item_total = effective_price * quantity
+
+                bill_item = BillItem(
+                    product_id=None,
+                    product_name=item_data.get('name') or 'Custom Item',
+                    product_code=item_data.get('productCode') or '',
+                    product_category=item_data.get('category') or 'Textile',
+                    product_unit=item_data.get('unit') or 'Pieces',
+                    sell_price=effective_price,
+                    quantity=quantity,
+                    total=item_total
+                )
+
             bill.items.append(bill_item)
             items_added.append({
-                'name': product.name,
+                'name': bill_item.product_name,
                 'quantity': quantity,
                 'total': item_total,
                 'status': 'pending'
